@@ -52,6 +52,13 @@ export class HUD {
         background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
         font-size: 11px; font-weight: 600; color: #22d3ee;
       ">&#128065; Eye ON</div>
+      <div id="ghud-voice" style="
+        display: none; padding: 4px 12px; border-radius: 16px;
+        background: rgba(239, 68, 68, 0.2); backdrop-filter: blur(8px);
+        font-size: 11px; font-weight: 600; color: #ef4444;
+        animation: ghud-pulse 1s ease-in-out infinite;
+      "></div>
+      <style>@keyframes ghud-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }</style>
       <div id="ghud-fps" style="
         padding: 3px 10px; border-radius: 12px;
         background: rgba(0,0,0,0.3);
@@ -93,8 +100,12 @@ export class HUD {
           <span style="font-size:22px;">&#9995;</span>
           <span><b style="color:#a78bfa;">Open + move</b> = scroll</span>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#127908;</span>
+          <span><b style="color:#ef4444;">V</b> = voice feedback</span>
+        </div>
         <div style="margin-top:8px;font-size:10px;color:#64748b;">
-          Keys: <b>1</b> Inspect <b>2</b> Draw <b>3</b> Measure | <b>C</b> clear <b>Z</b> undo <b>H</b> help <b>E</b> eye
+          Keys: <b>1</b> Inspect <b>2</b> Draw <b>3</b> Measure | <b>C</b> clear <b>Z</b> undo <b>H</b> help <b>E</b> eye <b>V</b> voice <b>F</b> feedback
         </div>
       </div>
     `;
@@ -138,6 +149,14 @@ export class HUD {
       this.lastFrameTime = now;
       this.fpsEl.textContent = `${fps} fps`;
       this.fpsEl.style.color = fps > 24 ? "#10b981" : fps > 15 ? "#f59e0b" : "#ef4444";
+    }
+  }
+
+  updateVoice(recording: boolean) {
+    const badge = this.root.querySelector("#ghud-voice") as HTMLElement;
+    if (badge) {
+      badge.style.display = recording ? "block" : "none";
+      badge.textContent = recording ? "\u{1F534} Recording..." : "";
     }
   }
 

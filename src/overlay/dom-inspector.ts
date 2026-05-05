@@ -36,13 +36,21 @@ export class DOMInspector {
     container.appendChild(this.panel);
   }
 
+  private _lastHitTest = 0;
+  private _lastHitEl: HTMLElement | null = null;
+
   getElementAt(x: number, y: number): HTMLElement | null {
+    const now = performance.now();
+    if (now - this._lastHitTest < 50) return this._lastHitEl;
+    this._lastHitTest = now;
     const els = document.elementsFromPoint(x, y);
     for (const el of els) {
       if (el instanceof HTMLElement && !this.isOverlay(el)) {
+        this._lastHitEl = el;
         return el;
       }
     }
+    this._lastHitEl = null;
     return null;
   }
 
@@ -87,7 +95,7 @@ export class DOMInspector {
     return label.length > 50 ? label.slice(0, 47) + "..." : label;
   }
 
-  private getInfo(el: HTMLElement): ElementInfo {
+  getInfo(el: HTMLElement): ElementInfo {
     const cs = getComputedStyle(el);
     const rect = el.getBoundingClientRect();
 
@@ -140,8 +148,8 @@ export class DOMInspector {
     html += `<span style="color:#a78bfa;font-weight:700;font-size:13px;">&lt;${tag}&gt;</span>`;
     html += `<span style="color:#475569;font-size:10px;">depth ${depth} | ${children} children</span>`;
     html += `</div>`;
-    if (id) html += `<div style="color:#6366f1;margin-top:4px;">#${id}</div>`;
-    if (classes.length) html += `<div style="color:#22d3ee;margin-top:2px;">.${classes.join(" .")}</div>`;
+    if (id) html += `<div style="color:#6366f1;margin-top:4px;">#${escapeHtml(id)}</div>`;
+    if (classes.length) html += `<div style="color:#22d3ee;margin-top:2px;">.${classes.map(escapeHtml).join(" .")}</div>`;
     html += `</div>`;
 
     html += `<div style="padding:10px 14px;border-bottom:1px solid #27272a;">`;
@@ -161,10 +169,10 @@ export class DOMInspector {
         const isColor = v.startsWith("rgb") || v.startsWith("#");
         if (isColor) {
           html += `<span style="display:flex;align-items:center;gap:4px;">`;
-          html += `<span style="width:10px;height:10px;border-radius:2px;background:${v};border:1px solid #444;display:inline-block;"></span>`;
-          html += `<span style="color:#e2e8f0;">${v}</span></span>`;
+          html += `<span style="width:10px;height:10px;border-radius:2px;background:${escapeHtml(v)};border:1px solid #444;display:inline-block;"></span>`;
+          html += `<span style="color:#e2e8f0;">${escapeHtml(v)}</span></span>`;
         } else {
-          html += `<span style="color:#e2e8f0;">${v}</span>`;
+          html += `<span style="color:#e2e8f0;">${escapeHtml(v)}</span>`;
         }
         html += `</div>`;
       }
@@ -200,6 +208,41 @@ export class DOMInspector {
   }
 }
 
+export function getXPath(el: HTMLElement): string {
+  const parts: string[] = [];
+  let node: HTMLElement | null = el;
+  while (node && node !== document.body) {
+    let idx = 1;
+    let sib = node.previousElementSibling;
+    while (sib) {
+      if (sib.tagName === node.tagName) idx++;
+      sib = sib.previousElementSibling;
+    }
+    parts.unshift(`${node.tagName.toLowerCase()}[${idx}]`);
+    node = node.parentElement;
+  }
+  return "/html/body/" + parts.join("/");
+}
+
+export function getCssSelector(el: HTMLElement): string {
+  if (el.id) return `#${el.id}`;
+  const parts: string[] = [];
+  let node: HTMLElement | null = el;
+  while (node && node !== document.body && parts.length < 4) {
+    let sel = node.tagName.toLowerCase();
+    if (node.id) {
+      parts.unshift(`#${node.id}`);
+      break;
+    }
+    if (node.classList.length) {
+      sel += "." + [...node.classList].slice(0, 2).join(".");
+    }
+    parts.unshift(sel);
+    node = node.parentElement;
+  }
+  return parts.join(" > ");
+}
+
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 }

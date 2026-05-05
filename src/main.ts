@@ -4,6 +4,9 @@ import { ModeManager } from "./modes";
 import { CanvasOverlay } from "./overlay/canvas-overlay";
 import { DOMInspector } from "./overlay/dom-inspector";
 import { HUD } from "./overlay/hud";
+import { SpeechRecorder } from "./voice/speech-recorder";
+import { FeedbackStore } from "./voice/feedback-store";
+import { FeedbackPanel } from "./overlay/feedback-panel";
 
 async function main() {
   const videoEl = document.getElementById("gesture-video-feed") as HTMLVideoElement;
@@ -27,6 +30,44 @@ async function main() {
   const inspector = new DOMInspector(overlayRoot);
   const hud = new HUD(overlayRoot);
   const scrollCtrl = new ScrollController();
+  const feedbackStore = new FeedbackStore();
+  const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
+
+  let voiceRecorder: SpeechRecorder | null = null;
+  let voiceTranscript = "";
+
+  function startVoiceRecording() {
+    if (!SpeechRecorder.isSupported()) return;
+    if (!inspector.selectedElement) return;
+    voiceTranscript = "";
+    canvas.recordingActive = true;
+    hud.updateVoice(true);
+    voiceRecorder = new SpeechRecorder({
+      onInterim: (text) => { voiceTranscript = text; },
+      onFinal: (text, confidence) => {
+        voiceTranscript = text;
+        if (inspector.selectedElement) {
+          const info = inspector.getInfo(inspector.selectedElement);
+          feedbackStore.add(info, text, confidence);
+          feedbackPanel.show();
+        }
+      },
+      onError: () => {
+        canvas.recordingActive = false;
+        hud.updateVoice(false);
+      },
+      onEnd: () => {
+        canvas.recordingActive = false;
+        hud.updateVoice(false);
+        voiceRecorder = null;
+      },
+    });
+    voiceRecorder.start();
+  }
+
+  function stopVoiceRecording() {
+    if (voiceRecorder?.recording) voiceRecorder.stop();
+  }
 
   hud.updateMode(modes.current);
   modes.onChange((mode) => {
@@ -177,6 +218,8 @@ async function main() {
   }
 
   document.addEventListener("keydown", (e) => {
+    const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || (e.target as HTMLElement)?.isContentEditable) return;
     if (e.key === "1") modes.set("inspect");
     if (e.key === "2") modes.set("draw");
     if (e.key === "3") modes.set("measure");
@@ -185,7 +228,19 @@ async function main() {
     if (e.key === "h" || e.key === "H") hud.toggleHelp();
     if (e.key === "e" || e.key === "E") {
       eyeTrackingEnabled = !eyeTrackingEnabled;
+      gazeSmooth.x = 0.5;
+      gazeSmooth.y = 0.5;
       hud.updateEyeTracking(eyeTrackingEnabled);
+    }
+    if (e.key === "v" || e.key === "V") {
+      if (voiceRecorder?.recording) {
+        stopVoiceRecording();
+      } else {
+        startVoiceRecording();
+      }
+    }
+    if (e.key === "f" || e.key === "F") {
+      feedbackPanel.toggle();
     }
   });
 
@@ -211,4 +266,8 @@ async function main() {
   loop();
 }
 
-main();
+main().catch((err) => {
+  const el = document.getElementById("status");
+  if (el) el.textContent = "Error: " + (err?.message ?? err);
+  console.error("Gesture DevTools failed:", err);
+});

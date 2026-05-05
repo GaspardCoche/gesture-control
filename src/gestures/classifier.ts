@@ -9,11 +9,11 @@ function dist3d(a: NormalizedLandmark, b: NormalizedLandmark): number {
 }
 
 function angleBetween(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark): number {
-  const v1 = { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) };
-  const v2 = { x: c.x - b.x, y: c.y - b.y, z: (c.z ?? 0) - (b.z ?? 0) };
-  const dot = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-  const mag1 = Math.hypot(v1.x, v1.y, v1.z);
-  const mag2 = Math.hypot(v2.x, v2.y, v2.z);
+  const v1x = a.x - b.x, v1y = a.y - b.y, v1z = (a.z ?? 0) - (b.z ?? 0);
+  const v2x = c.x - b.x, v2y = c.y - b.y, v2z = (c.z ?? 0) - (b.z ?? 0);
+  const dot = v1x * v2x + v1y * v2y + v1z * v2z;
+  const mag1 = Math.hypot(v1x, v1y, v1z);
+  const mag2 = Math.hypot(v2x, v2y, v2z);
   if (mag1 < 1e-6 || mag2 < 1e-6) return 0;
   return Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2)))) * (180 / Math.PI);
 }
@@ -86,7 +86,7 @@ function classifyRaw(lm: NormalizedLandmark[]): ClassificationResult {
   const ringExt = isFingerExtended(lm, 2);
   const pinkyExt = isFingerExtended(lm, 3);
   const thumbExt = isThumbExtended(lm);
-  const extendedCount = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
+  const extendedCount = (indexExt ? 1 : 0) + (middleExt ? 1 : 0) + (ringExt ? 1 : 0) + (pinkyExt ? 1 : 0);
 
   const fingers: FingerState = {
     index: indexExt, middle: middleExt, ring: ringExt,
@@ -117,6 +117,8 @@ function classifyRaw(lm: NormalizedLandmark[]): ClassificationResult {
 
 // ─── EMA temporal smoothing with hysteresis ───
 
+const GESTURE_KEYS: GestureType[] = ["PINCH", "POINT", "FIST", "OPEN", "PEACE", "THUMBS_UP", "NONE"];
+
 const gestureScores: Record<GestureType, number> = {
   PINCH: 0, POINT: 0, FIST: 0, OPEN: 0, PEACE: 0, THUMBS_UP: 0, NONE: 1,
 };
@@ -129,17 +131,17 @@ const DEACTIVATE_THRESHOLD = 0.25;
 export function classify(lm: NormalizedLandmark[]): ClassificationResult {
   const raw = classifyRaw(lm);
 
-  for (const k of Object.keys(gestureScores) as GestureType[]) {
-    gestureScores[k] *= (1 - ALPHA);
+  for (let i = 0; i < GESTURE_KEYS.length; i++) {
+    gestureScores[GESTURE_KEYS[i]] *= (1 - ALPHA);
   }
   gestureScores[raw.type] += ALPHA;
 
   let best: GestureType = "NONE";
   let bestScore = 0;
-  for (const k of Object.keys(gestureScores) as GestureType[]) {
-    if (gestureScores[k] > bestScore) {
-      bestScore = gestureScores[k];
-      best = k;
+  for (let i = 0; i < GESTURE_KEYS.length; i++) {
+    if (gestureScores[GESTURE_KEYS[i]] > bestScore) {
+      bestScore = gestureScores[GESTURE_KEYS[i]];
+      best = GESTURE_KEYS[i];
     }
   }
 
@@ -149,12 +151,13 @@ export function classify(lm: NormalizedLandmark[]): ClassificationResult {
     currentGesture = "NONE";
   }
 
-  return { ...raw, type: currentGesture };
+  raw.type = currentGesture;
+  return raw;
 }
 
 export function resetClassifier() {
-  for (const k of Object.keys(gestureScores) as GestureType[]) {
-    gestureScores[k] = k === "NONE" ? 1 : 0;
+  for (let i = 0; i < GESTURE_KEYS.length; i++) {
+    gestureScores[GESTURE_KEYS[i]] = GESTURE_KEYS[i] === "NONE" ? 1 : 0;
   }
   currentGesture = "NONE";
 }

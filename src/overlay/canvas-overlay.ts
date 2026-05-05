@@ -24,6 +24,7 @@ export class CanvasOverlay {
   highlightRect: DOMRect | null = null;
   highlightTag = "";
   isDrawing = false;
+  recordingActive = false;
 
   private readonly SMOOTHING = 0.22;
   private readonly TRAIL_LEN = 14;
@@ -231,6 +232,16 @@ export class CanvasOverlay {
         ctx.lineWidth = 2;
         ctx.stroke();
       }
+    }
+
+    if (this.recordingActive && this.trail.length > 0) {
+      const { x, y } = this.smoothCursor;
+      const pulse = 0.4 + 0.3 * Math.sin(performance.now() / 300);
+      ctx.beginPath();
+      ctx.arc(x, y, 24, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(239, 68, 68, ${pulse})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
     }
 
     if (eyeTrackingOn && this.gazeVisible) {

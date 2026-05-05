@@ -10,6 +10,7 @@ import { SpeechRecorder } from "./voice/speech-recorder";
 import { WhisperRecorder } from "./voice/whisper-recorder";
 import { FeedbackStore } from "./voice/feedback-store";
 import { FeedbackPanel } from "./overlay/feedback-panel";
+import { SettingsPanel } from "./overlay/settings-panel";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -54,6 +55,9 @@ async function main() {
   const scrollCtrl = new ScrollController();
   const feedbackStore = new FeedbackStore();
   const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
+  const settingsPanel = new SettingsPanel(overlayRoot);
+  feedbackPanel.setOnOpenSettings(() => settingsPanel.show());
+  settingsPanel.onChange(() => feedbackPanel.refreshKeyBadge());
 
   let voiceRecorder: VoiceBackend | null = null;
   let voiceTranscript = "";
@@ -271,6 +275,9 @@ async function main() {
     }
     if (e.key === "f" || e.key === "F") {
       feedbackPanel.toggle();
+    }
+    if (e.key === "s" || e.key === "S") {
+      settingsPanel.toggle();
     }
   });
 

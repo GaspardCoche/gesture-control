@@ -13,6 +13,7 @@ export class HUD {
   private modeEl!: HTMLElement;
   private descEl!: HTMLElement;
   private fpsEl!: HTMLElement;
+  private eyeEl!: HTMLElement;
   private onboardEl!: HTMLElement;
   private onboardVisible = true;
   private lastFrameTime = 0;
@@ -46,6 +47,11 @@ export class HUD {
         font-size: 11px; font-weight: 600; color: #475569;
         text-transform: uppercase;
       ">Show your hand</div>
+      <div id="ghud-eye" style="
+        padding: 4px 12px; border-radius: 16px;
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+        font-size: 11px; font-weight: 600; color: #22d3ee;
+      ">&#128065; Eye ON</div>
       <div id="ghud-fps" style="
         padding: 3px 10px; border-radius: 12px;
         background: rgba(0,0,0,0.3);
@@ -79,8 +85,16 @@ export class HUD {
           <span style="font-size:22px;">&#9994;</span>
           <span><b style="color:#ef4444;">Fist</b> (hold) = clear</span>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#128077;</span>
+          <span><b style="color:#22d3ee;">Thumbs up</b> = toggle eye</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#9995;</span>
+          <span><b style="color:#a78bfa;">Open + move</b> = scroll</span>
+        </div>
         <div style="margin-top:8px;font-size:10px;color:#64748b;">
-          Keys: <b>1</b> Inspect <b>2</b> Draw <b>3</b> Measure | <b>C</b> clear <b>Z</b> undo <b>H</b> help
+          Keys: <b>1</b> Inspect <b>2</b> Draw <b>3</b> Measure | <b>C</b> clear <b>Z</b> undo <b>H</b> help <b>E</b> eye
         </div>
       </div>
     `;
@@ -90,6 +104,7 @@ export class HUD {
     this.modeEl = this.root.querySelector("#ghud-mode")!;
     this.descEl = this.root.querySelector("#ghud-desc")!;
     this.fpsEl = this.root.querySelector("#ghud-fps")!;
+    this.eyeEl = this.root.querySelector("#ghud-eye")!;
     this.onboardEl = this.root.querySelector("#ghud-onboard")!;
 
     this.onboardTimer = window.setTimeout(() => this.hideOnboard(), 15000);
@@ -124,6 +139,11 @@ export class HUD {
       this.fpsEl.textContent = `${fps} fps`;
       this.fpsEl.style.color = fps > 24 ? "#10b981" : fps > 15 ? "#f59e0b" : "#ef4444";
     }
+  }
+
+  updateEyeTracking(enabled: boolean) {
+    this.eyeEl.textContent = enabled ? "\u{1F441} Eye ON" : "\u{1F441} Eye OFF";
+    this.eyeEl.style.color = enabled ? "#22d3ee" : "#475569";
   }
 
   toggleHelp() {

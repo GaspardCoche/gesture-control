@@ -1,6 +1,9 @@
 import { FilesetResolver, HandLandmarker, type NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { classify, type GestureType, type ClassificationResult } from "./classifier";
+import { initFaceDetector, detectGaze, type GazeState } from "./gaze";
 
-export type GestureType = "PINCH" | "POINT" | "FIST" | "OPEN" | "SPREAD" | "PEACE" | "NONE";
+export type { GestureType } from "./classifier";
+export type { GazeState } from "./gaze";
 
 export interface GestureState {
   type: GestureType;
@@ -8,12 +11,22 @@ export interface GestureState {
   landmarks: NormalizedLandmark[];
   indexTip: { x: number; y: number; z: number };
   thumbTip: { x: number; y: number; z: number };
-  pinchDistance: number;
+  wrist: { x: number; y: number; z: number };
+  pinchRatio: number;
+  handScale: number;
+  classification: ClassificationResult;
+}
+
+export interface DetectionResult {
+  hand: GestureState | null;
+  gaze: GazeState | null;
 }
 
 let handLandmarker: HandLandmarker | null = null;
+let faceReady = false;
+let frameCount = 0;
 
-export async function initDetector(): Promise<HandLandmarker> {
+export async function initDetector(): Promise<void> {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
   );
@@ -25,57 +38,54 @@ export async function initDetector(): Promise<HandLandmarker> {
       delegate: "GPU",
     },
     runningMode: "VIDEO",
-    numHands: 2,
-    minHandDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    numHands: 1,
+    minHandDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6,
   });
 
-  return handLandmarker;
+  try {
+    await initFaceDetector(vision);
+    faceReady = true;
+  } catch {
+    faceReady = false;
+  }
 }
 
-export function detect(video: HTMLVideoElement, timestamp: number): GestureState | null {
-  if (!handLandmarker) return null;
+export function detect(video: HTMLVideoElement, timestamp: number): DetectionResult {
+  let hand: GestureState | null = null;
+  let gaze: GazeState | null = null;
 
-  const results = handLandmarker.detectForVideo(video, timestamp);
-  if (!results.landmarks.length) return null;
+  if (handLandmarker) {
+    const results = handLandmarker.detectForVideo(video, timestamp);
+    if (results.landmarks.length > 0) {
+      const lm = results.landmarks[0];
+      const classification = classify(lm);
+      const indexTip = lm[8];
+      const thumbTip = lm[4];
+      const wrist = lm[0];
 
-  const lm = results.landmarks[0];
-  const indexTip = lm[8];
-  const thumbTip = lm[4];
-
-  const pinchDistance = Math.hypot(
-    indexTip.x - thumbTip.x,
-    indexTip.y - thumbTip.y,
-    indexTip.z - thumbTip.z
-  );
-
-  const type = classifyGesture(lm, pinchDistance);
-
-  return {
-    type,
-    confidence: results.handedness[0]?.[0]?.score ?? 0,
-    landmarks: lm,
-    indexTip: { x: indexTip.x, y: indexTip.y, z: indexTip.z },
-    thumbTip: { x: thumbTip.x, y: thumbTip.y, z: thumbTip.z },
-    pinchDistance,
-  };
-}
-
-function classifyGesture(lm: NormalizedLandmark[], pinchDist: number): GestureType {
-  if (pinchDist < 0.04) return "PINCH";
-
-  const fingerTips = [lm[8], lm[12], lm[16], lm[20]];
-  const fingerMcps = [lm[5], lm[9], lm[13], lm[17]];
-
-  const extended = fingerTips.filter((tip, i) => tip.y < fingerMcps[i].y);
-
-  if (extended.length === 0) return "FIST";
-  if (extended.length === 1 && fingerTips[0].y < fingerMcps[0].y) return "POINT";
-  if (extended.length === 2 && fingerTips[0].y < fingerMcps[0].y && fingerTips[1].y < fingerMcps[1].y) return "PEACE";
-  if (extended.length === 4) {
-    const spread = Math.abs(lm[8].x - lm[20].x);
-    return spread > 0.15 ? "SPREAD" : "OPEN";
+      hand = {
+        type: classification.type,
+        confidence: results.handedness[0]?.[0]?.score ?? 0,
+        landmarks: lm,
+        indexTip: { x: indexTip.x, y: indexTip.y, z: indexTip.z ?? 0 },
+        thumbTip: { x: thumbTip.x, y: thumbTip.y, z: thumbTip.z ?? 0 },
+        wrist: { x: wrist.x, y: wrist.y, z: wrist.z ?? 0 },
+        pinchRatio: classification.pinchRatio,
+        handScale: classification.handScale,
+        classification,
+      };
+    }
   }
 
-  return "NONE";
+  if (faceReady && frameCount % 2 === 0) {
+    gaze = detectGaze(video, timestamp);
+  }
+  frameCount++;
+
+  return { hand, gaze };
+}
+
+export function isFaceReady(): boolean {
+  return faceReady;
 }

@@ -1,4 +1,5 @@
-import { initDetector, detect, type GestureState, type GestureType } from "./gestures/detector";
+import { initDetector, detect, isFaceReady, type GestureState, type GestureType, type GazeState } from "./gestures/detector";
+import { ScrollController } from "./gestures/scroll";
 import { ModeManager } from "./modes";
 import { CanvasOverlay } from "./overlay/canvas-overlay";
 import { DOMInspector } from "./overlay/dom-inspector";
@@ -14,30 +15,42 @@ async function main() {
   videoEl.srcObject = stream;
   await videoEl.play();
 
-  statusEl.textContent = "Loading MediaPipe...";
+  statusEl.textContent = "Loading MediaPipe (hand + face)...";
   await initDetector();
-  statusEl.textContent = "Ready — show your hand";
+  statusEl.textContent = isFaceReady()
+    ? "Ready — hand + eye tracking"
+    : "Ready — hand tracking (face model failed)";
 
   const overlayRoot = document.body;
   const modes = new ModeManager();
   const canvas = new CanvasOverlay(overlayRoot);
   const inspector = new DOMInspector(overlayRoot);
   const hud = new HUD(overlayRoot);
+  const scrollCtrl = new ScrollController();
 
   hud.updateMode(modes.current);
   modes.onChange((mode) => {
     hud.updateMode(mode);
     canvas.setHighlight(null);
     inspector.select(null);
+    scrollCtrl.reset();
   });
 
   let lastGesture: GestureType = "NONE";
   let gestureStartTime = 0;
   let peaceDebounce = 0;
+  let eyeTrackingEnabled = true;
+  let lastGaze: GazeState | null = null;
+  let blinkDebounce = 0;
+
+  const gazeSmooth = { x: 0.5, y: 0.5 };
+  const GAZE_SMOOTHING = 0.12;
 
   function handleGesture(state: GestureState) {
     const { type } = state;
     canvas.updateCursor(state.indexTip.x, state.indexTip.y);
+
+    const scrollAmount = scrollCtrl.update(type, state.wrist.y);
 
     if (type !== lastGesture) {
       if (lastGesture === "PINCH" && modes.current === "draw") {
@@ -47,6 +60,13 @@ async function main() {
     }
 
     const mode = modes.current;
+
+    if (type === "OPEN" && scrollCtrl.isScrolling) {
+      canvas.setScrollIndicator(scrollAmount);
+      hud.updateGesture(type, state.confidence);
+      lastGesture = type;
+      return;
+    }
 
     switch (type) {
       case "POINT":
@@ -95,6 +115,7 @@ async function main() {
           canvas.setHighlight(null);
           inspector.select(null);
         }
+        canvas.setScrollIndicator(0);
         break;
 
       case "PEACE":
@@ -103,10 +124,46 @@ async function main() {
           peaceDebounce = Date.now();
         }
         break;
+
+      case "THUMBS_UP":
+        if (type !== lastGesture) {
+          eyeTrackingEnabled = !eyeTrackingEnabled;
+          hud.updateEyeTracking(eyeTrackingEnabled);
+        }
+        break;
     }
 
     hud.updateGesture(type, state.confidence);
     lastGesture = type;
+  }
+
+  function handleGaze(gaze: GazeState) {
+    if (!eyeTrackingEnabled) return;
+    lastGaze = gaze;
+
+    gazeSmooth.x += (gaze.x - gazeSmooth.x) * GAZE_SMOOTHING;
+    gazeSmooth.y += (gaze.y - gazeSmooth.y) * GAZE_SMOOTHING;
+
+    canvas.updateGazeCursor(gazeSmooth.x, gazeSmooth.y);
+
+    if (gaze.bothBlink && Date.now() - blinkDebounce > 800) {
+      blinkDebounce = Date.now();
+      const mode = modes.current;
+      const gx = gazeSmooth.x * window.innerWidth;
+      const gy = gazeSmooth.y * window.innerHeight;
+
+      if (mode === "inspect") {
+        const el = inspector.getElementAt(gx, gy);
+        if (el) {
+          inspector.select(el);
+          const rect = el.getBoundingClientRect();
+          canvas.setHighlight(rect, inspector.getTagLabel(el));
+        }
+      }
+      if (mode === "measure") {
+        canvas.addMeasurePointAt(gx, gy);
+      }
+    }
   }
 
   function handleNoHand() {
@@ -115,6 +172,7 @@ async function main() {
     }
     canvas.trail = [];
     lastGesture = "NONE";
+    scrollCtrl.reset();
     hud.updateGesture("NONE", 0);
   }
 
@@ -125,19 +183,27 @@ async function main() {
     if (e.key === "c" || e.key === "C") { canvas.clearAll(); inspector.select(null); }
     if (e.key === "z" || e.key === "Z") canvas.undoStroke();
     if (e.key === "h" || e.key === "H") hud.toggleHelp();
+    if (e.key === "e" || e.key === "E") {
+      eyeTrackingEnabled = !eyeTrackingEnabled;
+      hud.updateEyeTracking(eyeTrackingEnabled);
+    }
   });
 
   function loop() {
     const now = performance.now();
-    const state = detect(videoEl, now);
+    const result = detect(videoEl, now);
 
-    if (state && state.type !== "NONE") {
-      handleGesture(state);
+    if (result.hand && result.hand.type !== "NONE") {
+      handleGesture(result.hand);
     } else {
       handleNoHand();
     }
 
-    canvas.render(lastGesture, modes.current);
+    if (result.gaze) {
+      handleGaze(result.gaze);
+    }
+
+    canvas.render(lastGesture, modes.current, eyeTrackingEnabled);
     hud.updateFPS();
     requestAnimationFrame(loop);
   }

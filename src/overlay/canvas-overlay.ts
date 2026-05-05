@@ -17,6 +17,9 @@ export class CanvasOverlay {
   trail: Point[] = [];
   cursor: Point = { x: 0, y: 0 };
   smoothCursor: Point = { x: 0, y: 0 };
+  gazeCursor: Point = { x: 0, y: 0 };
+  gazeVisible = false;
+  scrollIndicator = 0;
   measurePoints: Point[] = [];
   highlightRect: DOMRect | null = null;
   highlightTag = "";
@@ -94,7 +97,22 @@ export class CanvasOverlay {
     this.measurePoints.push({ ...this.smoothCursor });
   }
 
-  render(activeGesture: string, mode: string) {
+  addMeasurePointAt(x: number, y: number) {
+    if (this.measurePoints.length >= 2) this.measurePoints = [];
+    this.measurePoints.push({ x, y });
+  }
+
+  updateGazeCursor(nx: number, ny: number) {
+    this.gazeCursor.x = nx * window.innerWidth;
+    this.gazeCursor.y = ny * window.innerHeight;
+    this.gazeVisible = true;
+  }
+
+  setScrollIndicator(amount: number) {
+    this.scrollIndicator = amount;
+  }
+
+  render(activeGesture: string, mode: string, eyeTrackingOn = false) {
     const { ctx } = this;
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -212,6 +230,50 @@ export class CanvasOverlay {
         ctx.strokeStyle = "#f59e0b";
         ctx.lineWidth = 2;
         ctx.stroke();
+      }
+    }
+
+    if (eyeTrackingOn && this.gazeVisible) {
+      const gx = this.gazeCursor.x;
+      const gy = this.gazeCursor.y;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 18, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(34, 211, 238, 0.4)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(gx, gy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(34, 211, 238, 0.7)";
+      ctx.fill();
+    }
+
+    if (this.scrollIndicator !== 0) {
+      const cx = w / 2;
+      const intensity = Math.min(Math.abs(this.scrollIndicator) / 30, 1);
+      const alpha = 0.2 + intensity * 0.5;
+      ctx.fillStyle = `rgba(99, 102, 241, ${alpha})`;
+      if (this.scrollIndicator > 0) {
+        for (let i = 0; i < 3; i++) {
+          const y = h - 40 + i * 12;
+          ctx.beginPath();
+          ctx.moveTo(cx - 20, y);
+          ctx.lineTo(cx, y + 8);
+          ctx.lineTo(cx + 20, y);
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
+          ctx.stroke();
+        }
+      } else {
+        for (let i = 0; i < 3; i++) {
+          const y = 40 - i * 12;
+          ctx.beginPath();
+          ctx.moveTo(cx - 20, y);
+          ctx.lineTo(cx, y - 8);
+          ctx.lineTo(cx + 20, y);
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
+          ctx.stroke();
+        }
       }
     }
   }

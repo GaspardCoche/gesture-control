@@ -11,6 +11,7 @@
     "deploy": "npm run build && npx gh-pages -d dist"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@mediapipe/tasks-vision": "^0.10.22",
     "three": "^0.170.0",
     "ws": "^8.18.0"

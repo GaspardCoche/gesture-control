@@ -1,8 +1,11 @@
 import { FaceLandmarker, type FaceLandmarkerResult, type NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { KalmanGaze2D } from "./kalman";
 
 export interface GazeState {
   x: number;
   y: number;
+  rawX: number;
+  rawY: number;
   blinkLeft: boolean;
   blinkRight: boolean;
   bothBlink: boolean;
@@ -10,6 +13,8 @@ export interface GazeState {
 }
 
 let faceLandmarker: FaceLandmarker | null = null;
+const gazeFilter = new KalmanGaze2D(100, 0.0015);
+let inBlink = false;
 
 export async function initFaceDetector(wasmFileset: unknown): Promise<FaceLandmarker> {
   faceLandmarker = await FaceLandmarker.createFromOptions(wasmFileset as any, {
@@ -32,14 +37,42 @@ export function detectGaze(video: HTMLVideoElement, timestamp: number): GazeStat
   if (!result.faceLandmarks?.length) return null;
 
   const landmarks = result.faceLandmarks[0];
-  const gaze = computeGazeFromIris(landmarks);
+  const raw = computeGazeFromIris(landmarks);
   const blink = computeBlink(result);
 
+  if (blink.bothBlink) {
+    inBlink = true;
+    const held = gazeFilter.peek();
+    return {
+      x: held.x,
+      y: held.y,
+      rawX: raw.x,
+      rawY: raw.y,
+      ...blink,
+      confidence: 0,
+    };
+  }
+
+  if (inBlink) {
+    gazeFilter.reset(raw.x, raw.y);
+    inBlink = false;
+  }
+
+  const filtered = gazeFilter.update(raw.x, raw.y, timestamp);
+
   return {
-    ...gaze,
+    x: filtered.x,
+    y: filtered.y,
+    rawX: raw.x,
+    rawY: raw.y,
     ...blink,
     confidence: 1,
   };
+}
+
+export function resetGazeFilter(): void {
+  gazeFilter.reset();
+  inBlink = false;
 }
 
 function computeGazeFromIris(lm: NormalizedLandmark[]): { x: number; y: number } {

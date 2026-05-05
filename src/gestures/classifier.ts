@@ -98,7 +98,8 @@ function classifyRaw(lm: NormalizedLandmark[]): ClassificationResult {
 
   let type: GestureType = "NONE";
 
-  if (pinchRatio < 0.15) {
+  const pinchThreshold = handScale < 0.18 ? 0.20 : handScale > 0.30 ? 0.13 : 0.15;
+  if (pinchRatio < pinchThreshold) {
     type = "PINCH";
   } else if (extendedCount === 0 && !thumbExt) {
     type = "FIST";
@@ -115,7 +116,7 @@ function classifyRaw(lm: NormalizedLandmark[]): ClassificationResult {
   return { type, fingers, pinchRatio, handScale };
 }
 
-// ─── EMA temporal smoothing with hysteresis ───
+// ─── EMA temporal smoothing with hysteresis + per-gesture stability gate ───
 
 const GESTURE_KEYS: GestureType[] = ["PINCH", "POINT", "FIST", "OPEN", "PEACE", "THUMBS_UP", "NONE"];
 
@@ -123,10 +124,33 @@ const gestureScores: Record<GestureType, number> = {
   PINCH: 0, POINT: 0, FIST: 0, OPEN: 0, PEACE: 0, THUMBS_UP: 0, NONE: 1,
 };
 
+const stabilityCounter: Record<GestureType, number> = {
+  PINCH: 0, POINT: 0, FIST: 0, OPEN: 0, PEACE: 0, THUMBS_UP: 0, NONE: 0,
+};
+
+const REQUIRED_STABILITY: Record<GestureType, number> = {
+  PINCH: 2,
+  POINT: 3,
+  OPEN: 3,
+  FIST: 8,
+  THUMBS_UP: 10,
+  PEACE: 15,
+  NONE: 1,
+};
+
 let currentGesture: GestureType = "NONE";
+let lastStabilityScore = 1;
+let lastAmbiguity = 0;
 const ALPHA = 0.3;
 const ACTIVATE_THRESHOLD = 0.48;
 const DEACTIVATE_THRESHOLD = 0.25;
+
+export interface StabilityInfo {
+  score: number;
+  ambiguity: number;
+  stableFrames: number;
+  required: number;
+}
 
 export function classify(lm: NormalizedLandmark[]): ClassificationResult {
   const raw = classifyRaw(lm);
@@ -138,26 +162,56 @@ export function classify(lm: NormalizedLandmark[]): ClassificationResult {
 
   let best: GestureType = "NONE";
   let bestScore = 0;
+  let secondScore = 0;
   for (let i = 0; i < GESTURE_KEYS.length; i++) {
-    if (gestureScores[GESTURE_KEYS[i]] > bestScore) {
-      bestScore = gestureScores[GESTURE_KEYS[i]];
+    const s = gestureScores[GESTURE_KEYS[i]];
+    if (s > bestScore) {
+      secondScore = bestScore;
+      bestScore = s;
       best = GESTURE_KEYS[i];
+    } else if (s > secondScore) {
+      secondScore = s;
     }
   }
 
-  if (best !== currentGesture && bestScore > ACTIVATE_THRESHOLD) {
+  if (raw.type === best) {
+    stabilityCounter[best] += 1;
+  } else {
+    stabilityCounter[best] = Math.max(0, stabilityCounter[best] - 1);
+  }
+
+  const required = REQUIRED_STABILITY[best] ?? 3;
+  const stable = stabilityCounter[best] >= required;
+
+  if (best !== currentGesture && bestScore > ACTIVATE_THRESHOLD && stable) {
     currentGesture = best;
+    for (const k of GESTURE_KEYS) if (k !== best) stabilityCounter[k] = 0;
   } else if (gestureScores[currentGesture] < DEACTIVATE_THRESHOLD) {
     currentGesture = "NONE";
   }
+
+  lastStabilityScore = bestScore;
+  lastAmbiguity = bestScore > 0 ? secondScore / bestScore : 0;
 
   raw.type = currentGesture;
   return raw;
 }
 
+export function getStabilityInfo(): StabilityInfo {
+  return {
+    score: lastStabilityScore,
+    ambiguity: lastAmbiguity,
+    stableFrames: stabilityCounter[currentGesture] ?? 0,
+    required: REQUIRED_STABILITY[currentGesture] ?? 0,
+  };
+}
+
 export function resetClassifier() {
   for (let i = 0; i < GESTURE_KEYS.length; i++) {
     gestureScores[GESTURE_KEYS[i]] = GESTURE_KEYS[i] === "NONE" ? 1 : 0;
+    stabilityCounter[GESTURE_KEYS[i]] = 0;
   }
   currentGesture = "NONE";
+  lastStabilityScore = 1;
+  lastAmbiguity = 0;
 }

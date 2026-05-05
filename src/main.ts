@@ -1,12 +1,21 @@
 import { initDetector, detect, isFaceReady, type GestureState, type GestureType, type GazeState } from "./gestures/detector";
+import { resetGazeFilter } from "./gestures/gaze";
+import { getStabilityInfo } from "./gestures/classifier";
 import { ScrollController } from "./gestures/scroll";
 import { ModeManager } from "./modes";
 import { CanvasOverlay } from "./overlay/canvas-overlay";
 import { DOMInspector } from "./overlay/dom-inspector";
 import { HUD } from "./overlay/hud";
 import { SpeechRecorder } from "./voice/speech-recorder";
+import { WhisperRecorder } from "./voice/whisper-recorder";
 import { FeedbackStore } from "./voice/feedback-store";
 import { FeedbackPanel } from "./overlay/feedback-panel";
+
+interface VoiceBackend {
+  start(): void | Promise<void>;
+  stop(): void;
+  readonly recording: boolean;
+}
 
 async function main() {
   const videoEl = document.getElementById("gesture-video-feed") as HTMLVideoElement;
@@ -24,6 +33,19 @@ async function main() {
     ? "Ready — hand + eye tracking"
     : "Ready — hand tracking (face model failed)";
 
+  let whisperReady = false;
+  if (WhisperRecorder.isSupported()) {
+    WhisperRecorder.warmup()
+      .then(() => {
+        whisperReady = true;
+        const dev = WhisperRecorder.device();
+        console.info(`[whisper] ready (${dev})`);
+      })
+      .catch((err) => {
+        console.warn("[whisper] warmup failed, falling back to Web Speech:", err);
+      });
+  }
+
   const overlayRoot = document.body;
   const modes = new ModeManager();
   const canvas = new CanvasOverlay(overlayRoot);
@@ -33,18 +55,22 @@ async function main() {
   const feedbackStore = new FeedbackStore();
   const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
 
-  let voiceRecorder: SpeechRecorder | null = null;
+  let voiceRecorder: VoiceBackend | null = null;
   let voiceTranscript = "";
 
   function startVoiceRecording() {
-    if (!SpeechRecorder.isSupported()) return;
     if (!inspector.selectedElement) return;
+    const useWhisper = whisperReady && WhisperRecorder.isSupported();
+    const useWebSpeech = !useWhisper && SpeechRecorder.isSupported();
+    if (!useWhisper && !useWebSpeech) return;
+
     voiceTranscript = "";
     canvas.recordingActive = true;
     hud.updateVoice(true);
-    voiceRecorder = new SpeechRecorder({
-      onInterim: (text) => { voiceTranscript = text; },
-      onFinal: (text, confidence) => {
+
+    const callbacks = {
+      onInterim: (text: string) => { voiceTranscript = text; },
+      onFinal: (text: string, confidence: number) => {
         voiceTranscript = text;
         if (inspector.selectedElement) {
           const info = inspector.getInfo(inspector.selectedElement);
@@ -61,8 +87,10 @@ async function main() {
         hud.updateVoice(false);
         voiceRecorder = null;
       },
-    });
-    voiceRecorder.start();
+    };
+
+    voiceRecorder = useWhisper ? new WhisperRecorder(callbacks) : new SpeechRecorder(callbacks);
+    void voiceRecorder.start();
   }
 
   function stopVoiceRecording() {
@@ -85,7 +113,7 @@ async function main() {
   let blinkDebounce = 0;
 
   const gazeSmooth = { x: 0.5, y: 0.5 };
-  const GAZE_SMOOTHING = 0.12;
+  const GAZE_SMOOTHING = 0.6;
 
   function handleGesture(state: GestureState) {
     const { type } = state;
@@ -160,7 +188,7 @@ async function main() {
         break;
 
       case "PEACE":
-        if (Date.now() - peaceDebounce > 600) {
+        if (Date.now() - peaceDebounce > 1500) {
           modes.cycle();
           peaceDebounce = Date.now();
         }
@@ -169,6 +197,7 @@ async function main() {
       case "THUMBS_UP":
         if (type !== lastGesture) {
           eyeTrackingEnabled = !eyeTrackingEnabled;
+          if (eyeTrackingEnabled) resetGazeFilter();
           hud.updateEyeTracking(eyeTrackingEnabled);
         }
         break;
@@ -230,6 +259,7 @@ async function main() {
       eyeTrackingEnabled = !eyeTrackingEnabled;
       gazeSmooth.x = 0.5;
       gazeSmooth.y = 0.5;
+      resetGazeFilter();
       hud.updateEyeTracking(eyeTrackingEnabled);
     }
     if (e.key === "v" || e.key === "V") {
@@ -260,6 +290,7 @@ async function main() {
 
     canvas.render(lastGesture, modes.current, eyeTrackingEnabled);
     hud.updateFPS();
+    hud.updateStability(getStabilityInfo());
     requestAnimationFrame(loop);
   }
 

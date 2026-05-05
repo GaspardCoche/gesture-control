@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Gesture DevTools — Inspect & Annotate Any Website",
+  "version": "1.0.0",
+  "description": "Inspect DOM elements, draw annotations, measure distances, and control DevTools with hand gestures on any website",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "css": ["src/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/page-detector.js", "lib/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "sandbox": "sandbox allow-scripts; script-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com"
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  }
+}

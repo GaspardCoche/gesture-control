@@ -1,0 +1,24 @@
+{
+  "name": "gesture-control",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "bridge": "node src/bridge/server.js",
+    "deploy": "npm run build && npx gh-pages -d dist"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.22",
+    "three": "^0.170.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "gh-pages": "^6.3.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}

@@ -1,0 +1,56 @@
+#gesture-presenter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  pointer-events: none;
+  cursor: none;
+}
+
+#gesture-presenter-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+#gesture-presenter-hud {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.gp-badge {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+}
+
+.gp-badge.active { background: rgba(99, 102, 241, 0.8); }
+.gp-badge.inspect { background: rgba(99, 102, 241, 0.7); }
+.gp-badge.draw { background: rgba(245, 158, 11, 0.7); }
+.gp-badge.spotlight { background: rgba(34, 211, 238, 0.7); }
+.gp-badge.console { background: rgba(16, 185, 129, 0.7); }
+.gp-badge.measure { background: rgba(244, 114, 182, 0.7); }
+
+.gp-hidden { display: none !important; }
+
+.gesture-debug-borders * {
+  outline: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+.gesture-debug-spacing * {
+  background: rgba(245, 158, 11, 0.05) !important;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.15) !important;
+}

@@ -1,28 +1,23 @@
 import type { Mode } from "../modes";
 import type { GestureType } from "../gestures/detector";
 
-const MODE_LABELS: Record<Mode, { icon: string; label: string; color: string }> = {
-  inspect:   { icon: "O", label: "Inspect",   color: "#6366f1" },
-  draw:      { icon: "/",  label: "Draw",      color: "#f59e0b" },
-  spotlight: { icon: "*", label: "Spotlight", color: "#22d3ee" },
-  console:   { icon: ">",  label: "Console",   color: "#10b981" },
-  measure:   { icon: "#", label: "Measure",   color: "#f472b6" },
-};
-
-const GESTURE_COLORS: Record<string, string> = {
-  PINCH: "#f59e0b", POINT: "#22d3ee", FIST: "#ef4444",
-  OPEN: "#10b981", SPREAD: "#8b5cf6", PEACE: "#f472b6", NONE: "#475569",
+const MODE_LABELS: Record<Mode, { label: string; color: string; desc: string }> = {
+  inspect: { label: "Inspect", color: "#6366f1", desc: "Point to highlight elements, pinch to select" },
+  draw:    { label: "Draw",    color: "#f59e0b", desc: "Pinch to draw, open hand to stop" },
+  measure: { label: "Measure", color: "#f472b6", desc: "Pinch to place measurement points" },
 };
 
 export class HUD {
   root: HTMLElement;
   private gestureEl!: HTMLElement;
   private modeEl!: HTMLElement;
-  private helpEl!: HTMLElement;
+  private descEl!: HTMLElement;
   private fpsEl!: HTMLElement;
-  private helpVisible = false;
+  private onboardEl!: HTMLElement;
+  private onboardVisible = true;
   private lastFrameTime = 0;
   private frameCount = 0;
+  private onboardTimer: number | null = null;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement("div");
@@ -35,43 +30,57 @@ export class HUD {
 
     this.root.innerHTML = `
       <div id="ghud-mode" style="
-        padding: 6px 14px; border-radius: 20px;
-        background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-        font-size: 13px; font-weight: 700; color: #e2e8f0;
-        display: flex; align-items: center; gap: 8px;
+        padding: 8px 16px; border-radius: 20px;
+        background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+        font-size: 14px; font-weight: 700; color: #e2e8f0;
         border: 1px solid rgba(99,102,241,0.3);
+      "></div>
+      <div id="ghud-desc" style="
+        padding: 4px 12px; border-radius: 12px;
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+        font-size: 11px; color: #94a3b8; max-width: 240px;
       "></div>
       <div id="ghud-gesture" style="
         padding: 4px 12px; border-radius: 16px;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
         font-size: 11px; font-weight: 600; color: #475569;
-        text-transform: uppercase; letter-spacing: 0.05em;
-      ">No hand</div>
+        text-transform: uppercase;
+      ">Show your hand</div>
       <div id="ghud-fps" style="
         padding: 3px 10px; border-radius: 12px;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0,0,0,0.3);
         font-size: 10px; color: #475569;
       ">-- fps</div>
-      <div id="ghud-help" style="
-        padding: 10px 14px; border-radius: 10px;
-        background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
-        font-size: 11px; color: #94a3b8; line-height: 1.8;
-        max-width: 280px; display: none;
-        border: 1px solid #27272a;
+      <div id="ghud-onboard" style="
+        margin-top: 8px; padding: 16px 20px; border-radius: 14px;
+        background: rgba(0,0,0,0.88); backdrop-filter: blur(16px);
+        border: 1px solid rgba(99,102,241,0.25);
+        font-size: 13px; color: #e2e8f0; line-height: 2;
+        max-width: 260px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
       ">
-        <div style="color:#e2e8f0;font-weight:700;margin-bottom:6px;">Gesture Controls</div>
-        <div><span style="color:#22d3ee;">Point</span> -- move cursor</div>
-        <div><span style="color:#f59e0b;">Pinch</span> -- select / draw / grab</div>
-        <div><span style="color:#10b981;">Open</span> -- release / deselect</div>
-        <div><span style="color:#ef4444;">Fist</span> (hold) -- clear</div>
-        <div><span style="color:#8b5cf6;">Spread</span> -- zoom / resize</div>
-        <div><span style="color:#f472b6;">Peace</span> -- cycle mode</div>
-        <div style="margin-top:8px;color:#64748b;font-size:10px;">
-          <kbd style="background:#27272a;padding:1px 4px;border-radius:3px;">1-5</kbd> modes
-          <kbd style="background:#27272a;padding:1px 4px;border-radius:3px;">C</kbd> clear
-          <kbd style="background:#27272a;padding:1px 4px;border-radius:3px;">Z</kbd> undo
-          <kbd style="background:#27272a;padding:1px 4px;border-radius:3px;">H</kbd> help
-          <kbd style="background:#27272a;padding:1px 4px;border-radius:3px;">D</kbd> debug
+        <div style="font-weight:800;font-size:14px;margin-bottom:8px;color:#6366f1;">Quick Start</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#9757;</span>
+          <span><b style="color:#22d3ee;">Point</b> = move cursor</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#129295;</span>
+          <span><b style="color:#f59e0b;">Pinch</b> = action</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#9995;</span>
+          <span><b style="color:#10b981;">Open</b> = release</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#9996;</span>
+          <span><b style="color:#f472b6;">Peace</b> = next mode</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">&#9994;</span>
+          <span><b style="color:#ef4444;">Fist</b> (hold) = clear</span>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:#64748b;">
+          Keys: <b>1</b> Inspect <b>2</b> Draw <b>3</b> Measure | <b>C</b> clear <b>Z</b> undo <b>H</b> help
         </div>
       </div>
     `;
@@ -79,23 +88,29 @@ export class HUD {
     container.appendChild(this.root);
     this.gestureEl = this.root.querySelector("#ghud-gesture")!;
     this.modeEl = this.root.querySelector("#ghud-mode")!;
-    this.helpEl = this.root.querySelector("#ghud-help")!;
+    this.descEl = this.root.querySelector("#ghud-desc")!;
     this.fpsEl = this.root.querySelector("#ghud-fps")!;
+    this.onboardEl = this.root.querySelector("#ghud-onboard")!;
+
+    this.onboardTimer = window.setTimeout(() => this.hideOnboard(), 15000);
   }
 
   updateMode(mode: Mode) {
     const m = MODE_LABELS[mode];
-    this.modeEl.innerHTML = `<span style="color:${m.color};">[${m.icon}]</span> <span>${m.label}</span>`;
+    this.modeEl.textContent = m.label;
     this.modeEl.style.borderColor = m.color + "60";
+    this.modeEl.style.color = m.color;
+    this.descEl.textContent = m.desc;
   }
 
   updateGesture(type: GestureType, confidence: number) {
     if (type === "NONE") {
-      this.gestureEl.textContent = "No hand detected";
+      this.gestureEl.textContent = "Show your hand";
       this.gestureEl.style.color = "#475569";
     } else {
-      this.gestureEl.textContent = `${type} (${Math.round(confidence * 100)}%)`;
-      this.gestureEl.style.color = GESTURE_COLORS[type] || "#e2e8f0";
+      this.gestureEl.textContent = `${type} ${Math.round(confidence * 100)}%`;
+      this.gestureEl.style.color = "#94a3b8";
+      if (this.onboardVisible) this.hideOnboard();
     }
   }
 
@@ -112,7 +127,16 @@ export class HUD {
   }
 
   toggleHelp() {
-    this.helpVisible = !this.helpVisible;
-    this.helpEl.style.display = this.helpVisible ? "block" : "none";
+    this.onboardVisible = !this.onboardVisible;
+    this.onboardEl.style.display = this.onboardVisible ? "block" : "none";
+  }
+
+  private hideOnboard() {
+    if (!this.onboardVisible) return;
+    this.onboardVisible = false;
+    this.onboardEl.style.transition = "opacity 0.5s";
+    this.onboardEl.style.opacity = "0";
+    setTimeout(() => { this.onboardEl.style.display = "none"; }, 500);
+    if (this.onboardTimer) clearTimeout(this.onboardTimer);
   }
 }

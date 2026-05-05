@@ -1,27 +1,10 @@
 (() => {
   "use strict";
 
-  const CONFIG = {
-    POINTER_SIZE: 16,
-    POINTER_TRAIL_LENGTH: 12,
-    DRAW_LINE_WIDTH: 4,
-    SPOTLIGHT_RADIUS: 120,
-    SMOOTHING: 0.25,
-    COLORS: {
-      pointer: "#6366f1",
-      pointerGlow: "rgba(99, 102, 241, 0.3)",
-      draw: "#f59e0b",
-      spotlight: "rgba(0, 0, 0, 0.6)",
-      measure: "#f472b6",
-      highlight: "rgba(99, 102, 241, 0.08)",
-      highlightBorder: "#6366f1",
-    },
-  };
-
-  const MODES = ["inspect", "draw", "spotlight", "console", "measure"];
+  const MODES = ["inspect", "draw", "measure"];
   const OVERLAY_IDS = new Set([
     "gesture-presenter-overlay", "gesture-presenter-canvas",
-    "gesture-presenter-hud", "gesture-inspector-panel", "gesture-console-panel",
+    "gesture-presenter-hud", "gesture-inspector-panel",
   ]);
 
   let enabled = false;
@@ -32,21 +15,18 @@
   let trail = [];
   let cursor = { x: 0, y: 0 };
   let smoothCursor = { x: 0, y: 0 };
-  let spotlightCenter = null;
-  let spotlightScale = 1;
   let measurePoints = [];
   let highlightRect = null;
   let highlightTag = "";
-  let selectedElement = null;
-  let debugBorders = false;
-  let debugSpacing = false;
   let canvas = null;
   let ctx = null;
   let animFrameId = null;
   let lastGesture = "NONE";
   let gestureStartTime = 0;
   let peaceDebounce = 0;
-  let detectorReady = false;
+
+  const SMOOTHING = 0.25;
+  const TRAIL_LEN = 12;
 
   function injectDetector() {
     const script = document.createElement("script");
@@ -78,22 +58,6 @@
       "z-index:1000001;overflow-y:auto;display:none;pointer-events:none;" +
       "box-shadow:0 8px 32px rgba(0,0,0,0.5);";
     document.body.appendChild(inspPanel);
-
-    const consPanel = document.createElement("div");
-    consPanel.id = "gesture-console-panel";
-    consPanel.style.cssText =
-      "position:fixed;bottom:16px;right:16px;width:400px;height:300px;" +
-      "background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);" +
-      "border:1px solid rgba(34,211,238,0.3);border-radius:12px;" +
-      "color:#e2e8f0;font-family:'SF Mono',monospace;font-size:11px;" +
-      "z-index:1000001;display:none;pointer-events:none;" +
-      "box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;flex-direction:column;";
-    consPanel.innerHTML =
-      '<div style="padding:8px 14px;border-bottom:1px solid #27272a;display:flex;justify-content:space-between;">' +
-      '<span style="color:#22d3ee;font-weight:700;">Console</span>' +
-      '<span style="color:#475569;font-size:10px;" id="gp-console-count">0</span></div>' +
-      '<div id="gp-console-list" style="flex:1;overflow-y:auto;padding:4px 0;"></div>';
-    document.body.appendChild(consPanel);
 
     canvas = document.getElementById("gesture-presenter-canvas");
     ctx = canvas.getContext("2d");
@@ -140,19 +104,15 @@
     if (!el) { panel.style.display = "none"; return; }
     const cs = getComputedStyle(el);
     const r = el.getBoundingClientRect();
-    const tag = el.tagName.toLowerCase();
-    const id = el.id ? "#" + el.id : "";
-    const cls = el.classList.length ? "." + [...el.classList].join(".") : "";
     let html = '<div style="padding:10px 12px;border-bottom:1px solid #27272a;">';
-    html += '<span style="color:#a78bfa;font-weight:700;">&lt;' + tag + '&gt;</span>';
-    if (id) html += ' <span style="color:#6366f1;">' + id + '</span>';
-    if (cls) html += ' <span style="color:#22d3ee;">' + cls + '</span>';
+    html += '<span style="color:#a78bfa;font-weight:700;">&lt;' + el.tagName.toLowerCase() + '&gt;</span>';
+    if (el.id) html += ' <span style="color:#6366f1;">#' + el.id + '</span>';
+    if (el.classList.length) html += ' <span style="color:#22d3ee;">.' + [...el.classList].join(".") + '</span>';
     html += '</div><div style="padding:8px 12px;font-size:11px;">';
     html += Math.round(r.width) + "x" + Math.round(r.height) + " at (" + Math.round(r.x) + ", " + Math.round(r.y) + ")<br>";
-    var props = ["display","position","color","background-color","font-size","padding","margin","border-radius"];
-    for (var i = 0; i < props.length; i++) {
-      var p = props[i];
-      var v = cs.getPropertyValue(p);
+    const props = ["display","position","color","background-color","font-size","padding","margin","border-radius"];
+    for (const p of props) {
+      const v = cs.getPropertyValue(p);
       if (v && v !== "none" && v !== "normal" && v !== "0px" && v !== "rgba(0, 0, 0, 0)") {
         html += '<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">' + p + '</span><span>' + v + '</span></div>';
       }
@@ -162,35 +122,22 @@
     panel.style.display = "block";
   }
 
-  function logToConsole(msg) {
-    var list = document.getElementById("gp-console-list");
-    var count = document.getElementById("gp-console-count");
-    if (!list) return;
-    var div = document.createElement("div");
-    div.style.cssText = "padding:2px 12px;border-bottom:1px solid #1e1e2e;";
-    var t = new Date().toLocaleTimeString("en", { hour12: false });
-    div.innerHTML = '<span style="color:#475569;">' + t + '</span> <span style="color:#10b981;">' + msg + '</span>';
-    list.appendChild(div);
-    list.scrollTop = list.scrollHeight;
-    if (count) count.textContent = list.children.length;
-  }
-
   function onGestureData(data) {
     if (!enabled) return;
-    if (data.status === "ready") { detectorReady = true; updateStatus("Ready"); startRenderLoop(); return; }
+    if (data.status === "ready") { updateStatus("Ready"); startRenderLoop(); return; }
     if (data.status === "loaded") { updateStatus("MediaPipe loaded..."); return; }
     if (data.status === "error") { updateStatus("Error: " + data.error); return; }
 
-    var gesture = data.gesture;
+    const gesture = data.gesture;
     if (!gesture || gesture === "NONE") { handleNoHand(); return; }
 
     if (data.indexTip) {
       cursor.x = (1 - data.indexTip.x) * window.innerWidth;
       cursor.y = data.indexTip.y * window.innerHeight;
-      smoothCursor.x += (cursor.x - smoothCursor.x) * CONFIG.SMOOTHING;
-      smoothCursor.y += (cursor.y - smoothCursor.y) * CONFIG.SMOOTHING;
+      smoothCursor.x += (cursor.x - smoothCursor.x) * SMOOTHING;
+      smoothCursor.y += (cursor.y - smoothCursor.y) * SMOOTHING;
       trail.push({ x: smoothCursor.x, y: smoothCursor.y });
-      if (trail.length > CONFIG.POINTER_TRAIL_LENGTH) trail.shift();
+      if (trail.length > TRAIL_LEN) trail.shift();
     }
 
     if (gesture !== lastGesture) {
@@ -202,71 +149,52 @@
       }
     }
 
-    if (gesture === "POINT") {
-      if (mode === "inspect") {
-        var el = getElementAt(smoothCursor.x, smoothCursor.y);
-        if (el) { highlightRect = el.getBoundingClientRect(); highlightTag = getTagLabel(el); }
-        else { highlightRect = null; }
-      }
-      if (mode === "spotlight") spotlightCenter = { x: smoothCursor.x, y: smoothCursor.y };
-    }
-
-    if (gesture === "PINCH") {
-      if (mode === "inspect") {
-        var el2 = getElementAt(smoothCursor.x, smoothCursor.y);
-        if (el2) {
-          selectedElement = el2;
-          highlightRect = el2.getBoundingClientRect();
-          highlightTag = getTagLabel(el2);
-          showInspectorPanel(el2);
-          logToConsole("Selected " + getTagLabel(el2));
+    switch (gesture) {
+      case "POINT":
+        if (mode === "inspect") {
+          const el = getElementAt(smoothCursor.x, smoothCursor.y);
+          if (el) { highlightRect = el.getBoundingClientRect(); highlightTag = getTagLabel(el); }
+          else highlightRect = null;
         }
-      }
-      if (mode === "draw") { isDrawing = true; currentPath.push({ x: smoothCursor.x, y: smoothCursor.y }); }
-      if (mode === "spotlight") spotlightCenter = { x: smoothCursor.x, y: smoothCursor.y };
-      if (mode === "measure" && gesture !== lastGesture) {
-        if (measurePoints.length >= 2) measurePoints = [];
-        measurePoints.push({ x: smoothCursor.x, y: smoothCursor.y });
-      }
-      if (mode === "console" && gesture !== lastGesture) {
-        debugBorders = !debugBorders;
-        document.body.classList.toggle("gesture-debug-borders", debugBorders);
-        logToConsole("Debug borders: " + (debugBorders ? "ON" : "OFF"));
-      }
-    }
-
-    if (gesture === "PEACE" && Date.now() - peaceDebounce > 600) {
-      var idx = MODES.indexOf(mode);
-      mode = MODES[(idx + 1) % MODES.length];
-      peaceDebounce = Date.now();
-      highlightRect = null;
-      showInspectorPanel(null);
-      document.getElementById("gesture-console-panel").style.display = mode === "console" ? "flex" : "none";
-      logToConsole("Mode: " + mode);
-    }
-
-    if (gesture === "SPREAD") {
-      if (mode === "spotlight" && spotlightCenter) spotlightScale = Math.min(3, spotlightScale + 0.02);
-      if (mode === "console" && gesture !== lastGesture) {
-        debugSpacing = !debugSpacing;
-        document.body.classList.toggle("gesture-debug-spacing", debugSpacing);
-        logToConsole("Debug spacing: " + (debugSpacing ? "ON" : "OFF"));
-      }
-    }
-
-    if (gesture === "FIST" && Date.now() - gestureStartTime > 1500 && lastGesture === "FIST") {
-      clearAnnotations();
-      gestureStartTime = Date.now() + 5000;
-    }
-
-    if (gesture === "OPEN") {
-      if (mode === "draw" && isDrawing) {
-        isDrawing = false;
-        if (currentPath.length > 2) drawPaths.push(currentPath.slice());
-        currentPath = [];
-      }
-      if (mode === "spotlight") { spotlightCenter = null; spotlightScale = 1; }
-      if (mode === "inspect") { highlightRect = null; showInspectorPanel(null); }
+        break;
+      case "PINCH":
+        if (mode === "inspect") {
+          const el = getElementAt(smoothCursor.x, smoothCursor.y);
+          if (el) {
+            highlightRect = el.getBoundingClientRect();
+            highlightTag = getTagLabel(el);
+            showInspectorPanel(el);
+          }
+        }
+        if (mode === "draw") { isDrawing = true; currentPath.push({ x: smoothCursor.x, y: smoothCursor.y }); }
+        if (mode === "measure" && gesture !== lastGesture) {
+          if (measurePoints.length >= 2) measurePoints = [];
+          measurePoints.push({ x: smoothCursor.x, y: smoothCursor.y });
+        }
+        break;
+      case "PEACE":
+        if (Date.now() - peaceDebounce > 600) {
+          const idx = MODES.indexOf(mode);
+          mode = MODES[(idx + 1) % MODES.length];
+          peaceDebounce = Date.now();
+          highlightRect = null;
+          showInspectorPanel(null);
+        }
+        break;
+      case "FIST":
+        if (Date.now() - gestureStartTime > 1500 && lastGesture === "FIST") {
+          clearAnnotations();
+          gestureStartTime = Date.now() + 5000;
+        }
+        break;
+      case "OPEN":
+        if (mode === "draw" && isDrawing) {
+          isDrawing = false;
+          if (currentPath.length > 2) drawPaths.push(currentPath.slice());
+          currentPath = [];
+        }
+        if (mode === "inspect") { highlightRect = null; showInspectorPanel(null); }
+        break;
     }
 
     lastGesture = gesture;
@@ -286,11 +214,8 @@
 
   function clearAnnotations() {
     drawPaths = []; currentPath = [];
-    spotlightCenter = null; spotlightScale = 1;
     measurePoints = []; highlightRect = null;
-    selectedElement = null;
     showInspectorPanel(null);
-    logToConsole("Cleared all");
   }
 
   function startRenderLoop() {
@@ -308,19 +233,18 @@
     if (!enabled) return;
 
     if (highlightRect) {
-      var r = highlightRect;
-      ctx.fillStyle = CONFIG.COLORS.highlight;
+      const r = highlightRect;
+      ctx.fillStyle = "rgba(99,102,241,0.08)";
       ctx.fillRect(r.x, r.y, r.width, r.height);
-      ctx.strokeStyle = CONFIG.COLORS.highlightBorder;
-      ctx.lineWidth = 2; ctx.setLineDash([6, 3]);
+      ctx.strokeStyle = "#6366f1"; ctx.lineWidth = 2; ctx.setLineDash([6, 3]);
       ctx.strokeRect(r.x, r.y, r.width, r.height); ctx.setLineDash([]);
       ctx.font = "11px system-ui";
-      var dimText = Math.round(r.width) + "x" + Math.round(r.height);
+      const dimText = Math.round(r.width) + "x" + Math.round(r.height);
       ctx.fillStyle = "rgba(99,102,241,0.9)";
       ctx.fillRect(r.x - 2, r.y - 20, ctx.measureText(dimText).width + 8, 17);
       ctx.fillStyle = "#fff"; ctx.fillText(dimText, r.x + 2, r.y - 7);
       if (highlightTag) {
-        var tagW = ctx.measureText(highlightTag).width;
+        const tagW = ctx.measureText(highlightTag).width;
         ctx.fillStyle = "rgba(30,30,46,0.9)";
         ctx.fillRect(r.x + r.width - tagW - 10, r.y + r.height + 3, tagW + 10, 17);
         ctx.fillStyle = "#a78bfa";
@@ -328,50 +252,39 @@
       }
     }
 
-    for (var i = 0; i < drawPaths.length; i++) renderPath(drawPaths[i], CONFIG.COLORS.draw, CONFIG.DRAW_LINE_WIDTH);
-    if (currentPath.length > 1) renderPath(currentPath, CONFIG.COLORS.draw, CONFIG.DRAW_LINE_WIDTH + 1);
-
-    if (mode === "spotlight" && spotlightCenter) {
-      var sx = spotlightCenter.x, sy = spotlightCenter.y, sr = CONFIG.SPOTLIGHT_RADIUS * spotlightScale;
-      ctx.fillStyle = CONFIG.COLORS.spotlight;
-      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-      ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 2; ctx.stroke();
-    }
+    for (const path of drawPaths) renderPath(path, "#f59e0b", 4);
+    if (currentPath.length > 1) renderPath(currentPath, "#f59e0b", 5);
 
     if (measurePoints.length >= 2) {
-      var a = measurePoints[0], b = measurePoints[1];
+      const [a, b] = measurePoints;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = CONFIG.COLORS.measure; ctx.lineWidth = 2;
+      ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
-      [a, b].forEach(function(p) {
+      for (const p of [a, b]) {
         ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = CONFIG.COLORS.measure; ctx.fill();
-      });
-      var dist = Math.round(Math.hypot(b.x - a.x, b.y - a.y));
-      ctx.font = "bold 13px system-ui"; ctx.fillStyle = CONFIG.COLORS.measure;
+        ctx.fillStyle = "#f472b6"; ctx.fill();
+      }
+      const dist = Math.round(Math.hypot(b.x - a.x, b.y - a.y));
+      ctx.font = "bold 13px system-ui"; ctx.fillStyle = "#f472b6";
       ctx.fillText(dist + "px", (a.x + b.x) / 2 + 8, (a.y + b.y) / 2 - 8);
     }
 
     if (trail.length > 1) {
       ctx.beginPath(); ctx.moveTo(trail[0].x, trail[0].y);
-      for (var j = 1; j < trail.length; j++) ctx.lineTo(trail[j].x, trail[j].y);
-      ctx.strokeStyle = CONFIG.COLORS.pointerGlow; ctx.lineWidth = 3;
+      for (let j = 1; j < trail.length; j++) ctx.lineTo(trail[j].x, trail[j].y);
+      ctx.strokeStyle = "rgba(99,102,241,0.3)"; ctx.lineWidth = 3;
       ctx.lineCap = "round"; ctx.stroke();
     }
     if (trail.length > 0) {
-      var cx = smoothCursor.x, cy = smoothCursor.y;
-      ctx.beginPath(); ctx.arc(cx, cy, CONFIG.POINTER_SIZE + 4, 0, Math.PI * 2);
-      ctx.fillStyle = CONFIG.COLORS.pointerGlow; ctx.fill();
-      ctx.beginPath(); ctx.arc(cx, cy, CONFIG.POINTER_SIZE / 2, 0, Math.PI * 2);
-      ctx.fillStyle = mode === "draw" ? CONFIG.COLORS.draw : mode === "measure" ? CONFIG.COLORS.measure : CONFIG.COLORS.pointer;
+      const cx = smoothCursor.x, cy = smoothCursor.y;
+      ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(99,102,241,0.15)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.fillStyle = mode === "draw" ? "#f59e0b" : mode === "measure" ? "#f472b6" : "#6366f1";
       ctx.fill();
       if (lastGesture === "PINCH") {
-        ctx.beginPath(); ctx.arc(cx, cy, CONFIG.POINTER_SIZE + 8, 0, Math.PI * 2);
-        ctx.strokeStyle = CONFIG.COLORS.draw; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+        ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2; ctx.stroke();
       }
     }
   }
@@ -379,8 +292,8 @@
   function renderPath(path, color, width) {
     if (path.length < 2) return;
     ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
-    for (var i = 1; i < path.length; i++) {
-      var prev = path[i - 1], curr = path[i];
+    for (let i = 1; i < path.length; i++) {
+      const prev = path[i - 1], curr = path[i];
       ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + curr.x) / 2, (prev.y + curr.y) / 2);
     }
     ctx.strokeStyle = color; ctx.lineWidth = width;
@@ -388,22 +301,21 @@
   }
 
   function updateStatus(text) {
-    var el = document.getElementById("gp-status");
+    const el = document.getElementById("gp-status");
     if (el) el.textContent = text;
   }
 
   function updateHud(gesture) {
-    var statusEl = document.getElementById("gp-status");
-    var modeEl = document.getElementById("gp-mode");
+    const statusEl = document.getElementById("gp-status");
+    const modeEl = document.getElementById("gp-mode");
     if (!statusEl) return;
     statusEl.textContent = gesture === "NONE" ? "Waiting for hand..." : "Gesture: " + gesture;
-    statusEl.className = gesture === "NONE" ? "gp-badge" : "gp-badge active";
     if (modeEl) { modeEl.textContent = "Mode: " + mode; modeEl.className = "gp-badge " + mode; }
   }
 
   function toggle() {
     enabled = !enabled;
-    var modeEl = document.getElementById("gp-mode");
+    const modeEl = document.getElementById("gp-mode");
     if (enabled) {
       if (modeEl) modeEl.classList.remove("gp-hidden");
       updateStatus("Starting...");
@@ -413,8 +325,6 @@
       stopRenderLoop(); clearAnnotations(); trail = [];
       if (ctx) ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       if (modeEl) modeEl.classList.add("gp-hidden");
-      var cp = document.getElementById("gesture-console-panel");
-      if (cp) cp.style.display = "none";
       updateStatus("Gesture DevTools: OFF — F9");
     }
   }
@@ -424,14 +334,12 @@
     if (!enabled) return;
     if (e.key === "1") mode = "inspect";
     if (e.key === "2") mode = "draw";
-    if (e.key === "3") mode = "spotlight";
-    if (e.key === "4") { mode = "console"; document.getElementById("gesture-console-panel").style.display = "flex"; }
-    if (e.key === "5") mode = "measure";
+    if (e.key === "3") mode = "measure";
     if (e.key === "c" || e.key === "C") clearAnnotations();
     if (e.key === "z" && drawPaths.length > 0) drawPaths.pop();
-    if (e.key === "d" || e.key === "D") {
-      debugBorders = !debugBorders;
-      document.body.classList.toggle("gesture-debug-borders", debugBorders);
+    if (e.key === "h" || e.key === "H") {
+      highlightRect = null;
+      showInspectorPanel(null);
     }
   });
 
@@ -441,11 +349,7 @@
 
   chrome.runtime.onMessage.addListener(function(msg) {
     if (msg.action === "toggle") toggle();
-    if (msg.action === "setMode") {
-      mode = msg.mode;
-      var cp = document.getElementById("gesture-console-panel");
-      if (cp) cp.style.display = mode === "console" ? "flex" : "none";
-    }
+    if (msg.action === "setMode" && MODES.includes(msg.mode)) mode = msg.mode;
     if (msg.action === "clear") clearAnnotations();
   });
 

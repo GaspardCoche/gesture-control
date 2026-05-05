@@ -1,6 +1,6 @@
-export type Mode = "inspect" | "draw" | "spotlight" | "console" | "measure";
+export type Mode = "inspect" | "draw" | "measure";
 
-const ALL_MODES: Mode[] = ["inspect", "draw", "spotlight", "console", "measure"];
+const ALL_MODES: Mode[] = ["inspect", "draw", "measure"];
 
 export class ModeManager {
   current: Mode = "inspect";

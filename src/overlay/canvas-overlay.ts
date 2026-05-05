@@ -17,8 +17,6 @@ export class CanvasOverlay {
   trail: Point[] = [];
   cursor: Point = { x: 0, y: 0 };
   smoothCursor: Point = { x: 0, y: 0 };
-  spotlightCenter: Point | null = null;
-  spotlightRadius = 120;
   measurePoints: Point[] = [];
   highlightRect: DOMRect | null = null;
   highlightTag = "";
@@ -81,7 +79,6 @@ export class CanvasOverlay {
   clearAll() {
     this.strokes = [];
     this.currentStroke = [];
-    this.spotlightCenter = null;
     this.measurePoints = [];
     this.highlightRect = null;
     this.trail = [];
@@ -134,28 +131,6 @@ export class CanvasOverlay {
     for (const s of this.strokes) this.renderStroke(s.points, s.color, s.width);
     if (this.currentStroke.length > 1) {
       this.renderStroke(this.currentStroke, "#f59e0b", 4);
-    }
-
-    if (this.spotlightCenter) {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-      ctx.fillRect(0, 0, w, h);
-      ctx.globalCompositeOperation = "destination-out";
-      const grad = ctx.createRadialGradient(
-        this.spotlightCenter.x, this.spotlightCenter.y, this.spotlightRadius * 0.6,
-        this.spotlightCenter.x, this.spotlightCenter.y, this.spotlightRadius
-      );
-      grad.addColorStop(0, "rgba(0,0,0,1)");
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(this.spotlightCenter.x, this.spotlightCenter.y, this.spotlightRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.beginPath();
-      ctx.arc(this.spotlightCenter.x, this.spotlightCenter.y, this.spotlightRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(34, 211, 238, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
     }
 
     if (this.measurePoints.length >= 2) {

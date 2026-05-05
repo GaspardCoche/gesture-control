@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gesture DevTools — Inspect, Draw, Measure with Hand Gestures</title>
+  <title>Gesture DevTools — Control any website with hand gestures</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -18,13 +18,9 @@
       overflow-x: hidden;
     }
     .gesture-debug-borders * { outline: 1px solid rgba(99, 102, 241, 0.3) !important; }
-    .gesture-debug-spacing * {
-      background: rgba(245, 158, 11, 0.05) !important;
-      box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.15) !important;
-    }
     .page-wrapper {
       display: grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr 300px;
       min-height: 100vh;
     }
     .demo-content {
@@ -59,12 +55,11 @@
     }
     .mode-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 6px;
     }
-    .mode-grid.row3 { grid-template-columns: 1fr; }
     .mode-btn {
-      padding: 8px;
+      padding: 10px 8px;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface2);
@@ -73,13 +68,13 @@
       text-align: center;
       cursor: pointer;
       transition: all 0.15s;
-      font-weight: 500;
+      font-weight: 600;
     }
     .mode-btn:hover { border-color: var(--primary); color: var(--text); }
     .help-panel {
-      font-size: 10px;
+      font-size: 11px;
       color: var(--muted);
-      line-height: 1.9;
+      line-height: 2;
       padding: 12px;
       background: var(--surface2);
       border-radius: 8px;
@@ -107,54 +102,69 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .demo-header nav { display: flex; gap: 16px; }
-    .demo-header nav a {
-      color: var(--muted); text-decoration: none;
-      font-size: 13px; font-weight: 500; transition: color 0.15s;
-    }
-    .demo-header nav a:hover { color: var(--text); }
     .hero-section {
-      text-align: center; padding: 48px 0;
+      text-align: center; padding: 40px 0;
       border-bottom: 1px solid var(--border); margin-bottom: 32px;
     }
-    .hero-section h2 { font-size: 36px; font-weight: 800; margin-bottom: 12px; }
+    .hero-section h2 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
     .hero-section p {
-      color: var(--muted); font-size: 16px;
+      color: var(--muted); font-size: 15px;
       max-width: 500px; margin: 0 auto 24px;
     }
-    .hero-btn {
-      display: inline-block; padding: 12px 28px;
-      background: var(--primary); color: white; border: none;
-      border-radius: 10px; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+    .bookmarklet-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px; margin-bottom: 32px;
+      text-align: center;
     }
-    .hero-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    .bookmarklet-section h3 {
+      font-size: 16px; font-weight: 700; margin-bottom: 8px;
+      color: var(--accent);
     }
-    .cards-grid {
+    .bookmarklet-section p {
+      color: var(--muted); font-size: 13px; margin-bottom: 16px;
+    }
+    .bookmarklet-link {
+      display: inline-block; padding: 14px 32px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: white; border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      text-decoration: none; cursor: grab;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .bookmarklet-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(99, 102, 241, 0.5);
+    }
+    .bookmarklet-instructions {
+      margin-top: 12px; font-size: 12px; color: var(--muted);
+    }
+    .features-grid {
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 16px; margin-bottom: 32px;
     }
-    .card {
+    .feature-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 12px; padding: 24px;
-      transition: border-color 0.15s, transform 0.15s;
+      transition: border-color 0.15s;
     }
-    .card:hover { border-color: var(--primary); transform: translateY(-2px); }
-    .card-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; margin-bottom: 12px;
+    .feature-card:hover { border-color: var(--primary); }
+    .feature-icon {
+      font-size: 28px; margin-bottom: 12px;
     }
-    .card-icon.purple { background: rgba(99,102,241,0.15); }
-    .card-icon.cyan { background: rgba(34,211,238,0.15); }
-    .card-icon.amber { background: rgba(245,158,11,0.15); }
-    .card-icon.green { background: rgba(16,185,129,0.15); }
-    .card-icon.pink { background: rgba(244,114,182,0.15); }
-    .card-icon.red { background: rgba(239,68,68,0.15); }
-    .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-    .card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .gesture-table {
+      width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 13px;
+    }
+    .gesture-table th, .gesture-table td {
+      padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .gesture-table th {
+      color: var(--muted); font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .gesture-emoji { font-size: 22px; }
     .section-title {
       font-size: 18px; font-weight: 700; margin-bottom: 16px;
       display: flex; align-items: center; gap: 8px;
@@ -163,75 +173,20 @@
       content: ""; width: 4px; height: 20px;
       border-radius: 2px; background: var(--primary);
     }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 13px; }
-    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
-    th {
-      color: var(--muted); font-weight: 600; font-size: 11px;
-      text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    td { color: var(--text); }
-    tr:hover td { background: var(--surface); }
-    .badge {
-      display: inline-block; padding: 2px 8px;
-      border-radius: 4px; font-size: 11px; font-weight: 600;
-    }
-    .badge.purple { background: rgba(99,102,241,0.15); color: var(--primary); }
-    .badge.green { background: rgba(16,185,129,0.15); color: var(--success); }
-    .badge.amber { background: rgba(245,158,11,0.15); color: var(--warning); }
-    .form-section {
+    .sample-content {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 12px; padding: 24px; margin-bottom: 32px;
     }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    .form-group label {
-      display: block; font-size: 12px; color: var(--muted);
-      margin-bottom: 6px; font-weight: 500;
+    .sample-content h3 { font-size: 14px; margin-bottom: 12px; color: var(--accent); }
+    .sample-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
     }
-    .form-group input, .form-group select, .form-group textarea {
-      width: 100%; padding: 10px 14px; background: var(--surface2);
-      border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text); font-size: 13px; font-family: inherit;
-      outline: none; transition: border-color 0.15s;
+    .sample-card {
+      padding: 16px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
     }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-      border-color: var(--primary);
-    }
-    .form-group textarea { resize: vertical; min-height: 80px; }
-    .form-actions { display: flex; gap: 12px; margin-top: 8px; }
-    .btn {
-      padding: 10px 20px; border: none; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
-    }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: #4f46e5; }
-    .btn-secondary { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
-    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
-    .stats-row {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 16px; margin-bottom: 32px;
-    }
-    .stat-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px; text-align: center;
-    }
-    .stat-value { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
-    .stat-value.purple { color: var(--primary); }
-    .stat-value.cyan { color: var(--accent); }
-    .stat-value.amber { color: var(--warning); }
-    .stat-value.green { color: var(--success); }
-    .stat-label { font-size: 12px; color: var(--muted); }
-    .image-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 12px; margin-bottom: 32px;
-    }
-    .image-placeholder {
-      aspect-ratio: 16/10; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; color: var(--muted); font-weight: 500;
-    }
-    .image-placeholder:nth-child(1) { background: linear-gradient(135deg, #1e1b4b, #312e81); }
-    .image-placeholder:nth-child(2) { background: linear-gradient(135deg, #164e63, #155e75); }
-    .image-placeholder:nth-child(3) { background: linear-gradient(135deg, #422006, #713f12); }
+    .sample-card h4 { font-size: 13px; margin-bottom: 4px; }
+    .sample-card p { font-size: 11px; color: var(--muted); }
     .demo-footer {
       padding: 24px 0; border-top: 1px solid var(--border); margin-top: 16px;
       display: flex; justify-content: space-between; align-items: center;
@@ -242,218 +197,137 @@
     @media (max-width: 900px) {
       .page-wrapper { grid-template-columns: 1fr; }
       .sidebar { display: none; }
-      .cards-grid { grid-template-columns: 1fr; }
-      .stats-row { grid-template-columns: repeat(2, 1fr); }
-      .image-grid { grid-template-columns: 1fr; }
-      .form-row { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .sample-cards { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="page-wrapper">
-    <main class="demo-content" id="demo-content">
+    <main class="demo-content">
       <header class="demo-header">
         <h1>Gesture DevTools</h1>
-        <nav>
-          <a href="#features">Features</a>
-          <a href="#gestures">Gestures</a>
-          <a href="#demo">Demo</a>
-          <a href="#contact">Contact</a>
-        </nav>
       </header>
-      <section class="hero-section" id="hero">
-        <h2>Control the Web with Your Hands</h2>
-        <p>Inspect elements, draw annotations, measure distances, and control DevTools — all through real-time hand gesture recognition.</p>
-        <button class="hero-btn" id="hero-cta">Try It Now</button>
+
+      <section class="hero-section">
+        <h2>Control Any Website with Your Hands</h2>
+        <p>Inspect elements, draw annotations, and measure distances — on any website, using just hand gestures. No extension needed.</p>
       </section>
-      <div class="stats-row" id="stats">
-        <div class="stat-card">
-          <div class="stat-value purple">5</div>
-          <div class="stat-label">Modes</div>
+
+      <section class="bookmarklet-section">
+        <h3>Use on Any Website</h3>
+        <p>Drag this button to your bookmarks bar, then click it on any website to activate gesture control.</p>
+        <a class="bookmarklet-link" id="bookmarklet-btn" href="javascript:void(0);">
+          Gesture DevTools
+        </a>
+        <div class="bookmarklet-instructions">
+          Drag to bookmarks bar &rarr; Navigate to any site &rarr; Click the bookmark
         </div>
-        <div class="stat-card">
-          <div class="stat-value cyan">6</div>
-          <div class="stat-label">Gestures</div>
+      </section>
+
+      <h2 class="section-title">3 Modes, 5 Gestures</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#128269;</div>
+          <h3>Inspect</h3>
+          <p>Point to highlight DOM elements. Pinch to select and see computed styles, dimensions, tag info.</p>
         </div>
-        <div class="stat-card">
-          <div class="stat-value amber">30</div>
-          <div class="stat-label">FPS</div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9999;&#65039;</div>
+          <h3>Draw</h3>
+          <p>Pinch to draw freehand annotations directly on the page. Open hand to stop. Z to undo.</p>
         </div>
-        <div class="stat-card">
-          <div class="stat-value green">0ms</div>
-          <div class="stat-label">Latency</div>
-        </div>
-      </div>
-      <h2 class="section-title" id="features">Features</h2>
-      <div class="cards-grid">
-        <div class="card" data-feature="inspect">
-          <div class="card-icon purple">O</div>
-          <h3>Inspect Mode</h3>
-          <p>Point at any DOM element to highlight it. Pinch to select and see computed styles, dimensions, and attributes.</p>
-        </div>
-        <div class="card" data-feature="draw">
-          <div class="card-icon amber">/</div>
-          <h3>Draw Mode</h3>
-          <p>Freehand annotations directly on the page. Pinch to draw, open hand to release. Undo with Z.</p>
-        </div>
-        <div class="card" data-feature="spotlight">
-          <div class="card-icon cyan">*</div>
-          <h3>Spotlight Mode</h3>
-          <p>Focus attention on specific areas. Point to position, pinch to grab, spread to resize the spotlight.</p>
-        </div>
-        <div class="card" data-feature="console">
-          <div class="card-icon green">&gt;</div>
-          <h3>Console Mode</h3>
-          <p>Live console output overlay. Toggle debug borders and spacing visualization with gestures.</p>
-        </div>
-        <div class="card" data-feature="measure">
-          <div class="card-icon pink">#</div>
-          <h3>Measure Mode</h3>
-          <p>Measure pixel distances between any two points on the page. Pinch to set measurement points.</p>
-        </div>
-        <div class="card" data-feature="extension">
-          <div class="card-icon red">+</div>
-          <h3>Chrome Extension</h3>
-          <p>Works on any website. Install the extension and use gestures on live production sites.</p>
+        <div class="feature-card">
+          <div class="feature-icon">&#128207;</div>
+          <h3>Measure</h3>
+          <p>Pinch twice to set two points — see the pixel distance between them instantly.</p>
         </div>
       </div>
-      <h2 class="section-title" id="gestures">Gesture Reference</h2>
-      <table>
+
+      <h2 class="section-title">Gesture Reference</h2>
+      <table class="gesture-table">
         <thead>
-          <tr>
-            <th>Gesture</th>
-            <th>Inspect</th>
-            <th>Draw</th>
-            <th>Spotlight</th>
-            <th>Console</th>
-            <th>Measure</th>
-          </tr>
+          <tr><th>Gesture</th><th>Action</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td><span class="badge purple">POINT</span></td>
-            <td>Hover highlight</td>
-            <td>Move cursor</td>
-            <td>Position light</td>
-            <td>Move cursor</td>
-            <td>Move cursor</td>
-          </tr>
-          <tr>
-            <td><span class="badge amber">PINCH</span></td>
-            <td>Select element</td>
-            <td>Draw stroke</td>
-            <td>Grab spotlight</td>
-            <td>Toggle borders</td>
-            <td>Set point</td>
-          </tr>
-          <tr>
-            <td><span class="badge green">OPEN</span></td>
-            <td>Deselect</td>
-            <td>End stroke</td>
-            <td>Release</td>
-            <td>--</td>
-            <td>--</td>
-          </tr>
-          <tr>
-            <td><span class="badge purple">FIST</span></td>
-            <td colspan="5">Hold 1.5s to clear all annotations and selections</td>
-          </tr>
-          <tr>
-            <td><span class="badge purple">SPREAD</span></td>
-            <td>--</td>
-            <td>--</td>
-            <td>Resize</td>
-            <td>Toggle spacing</td>
-            <td>--</td>
-          </tr>
-          <tr>
-            <td><span class="badge purple">PEACE</span></td>
-            <td colspan="5">Cycle to next mode</td>
-          </tr>
+          <tr><td><span class="gesture-emoji">&#9757;</span> Point</td><td>Move cursor / hover highlight (inspect mode)</td></tr>
+          <tr><td><span class="gesture-emoji">&#129295;</span> Pinch</td><td>Select element / Draw / Set measure point</td></tr>
+          <tr><td><span class="gesture-emoji">&#9995;</span> Open hand</td><td>Release / Deselect / End stroke</td></tr>
+          <tr><td><span class="gesture-emoji">&#9996;</span> Peace sign</td><td>Switch to next mode</td></tr>
+          <tr><td><span class="gesture-emoji">&#9994;</span> Fist (hold 1.5s)</td><td>Clear all annotations</td></tr>
         </tbody>
       </table>
-      <h2 class="section-title" id="demo">Sample Components</h2>
-      <div class="image-grid">
-        <div class="image-placeholder">Gradient A</div>
-        <div class="image-placeholder">Gradient B</div>
-        <div class="image-placeholder">Gradient C</div>
-      </div>
-      <div class="form-section" id="contact">
-        <h2 class="section-title">Sample Form</h2>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="name">Name</label>
-            <input type="text" id="name" placeholder="John Doe" />
+
+      <h2 class="section-title">Sample Content (try inspecting these)</h2>
+      <div class="sample-content">
+        <h3>Example Cards</h3>
+        <div class="sample-cards">
+          <div class="sample-card">
+            <h4>Revenue</h4>
+            <p>$42,500 this month</p>
           </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" placeholder="john@example.com" />
+          <div class="sample-card">
+            <h4>Users</h4>
+            <p>1,204 active today</p>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="role">Role</label>
-            <select id="role">
-              <option>Developer</option>
-              <option>Designer</option>
-              <option>Product Manager</option>
-              <option>QA Engineer</option>
-            </select>
+          <div class="sample-card">
+            <h4>Uptime</h4>
+            <p>99.98% last 30d</p>
           </div>
-          <div class="form-group">
-            <label for="priority">Priority</label>
-            <select id="priority">
-              <option>Low</option>
-              <option selected>Medium</option>
-              <option>High</option>
-              <option>Critical</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="message">Message</label>
-          <textarea id="message" placeholder="Describe what you'd like to inspect..."></textarea>
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-primary" type="button">Submit</button>
-          <button class="btn btn-secondary" type="button">Cancel</button>
         </div>
       </div>
+
+      <div class="sample-content">
+        <h3>Example Form</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Name</label>
+            <input type="text" placeholder="John Doe" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;" />
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+            <input type="email" placeholder="john@example.com" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;" />
+          </div>
+        </div>
+        <button style="margin-top:12px;padding:10px 24px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Submit</button>
+      </div>
+
       <footer class="demo-footer">
-        <span>Gesture DevTools v1.0 — MediaPipe + Canvas</span>
+        <span>Gesture DevTools v2.0 — 3 modes, works anywhere</span>
         <a href="https://github.com/GaspardCoche/gesture-control" target="_blank">GitHub</a>
       </footer>
     </main>
+
     <aside class="sidebar">
       <video id="gesture-video-feed" autoplay playsinline muted></video>
       <div id="status">Loading...</div>
       <div class="mode-grid">
         <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'1'}))">1 Inspect</button>
         <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'2'}))">2 Draw</button>
-        <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'3'}))">3 Spotlight</button>
-        <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'4'}))">4 Console</button>
-      </div>
-      <div class="mode-grid row3">
-        <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'5'}))">5 Measure</button>
+        <button class="mode-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'3'}))">3 Measure</button>
       </div>
       <div class="help-panel">
         <strong>Gestures</strong><br>
-        <strong style="color:#22d3ee;">Point</strong> -- move cursor / hover<br>
-        <strong style="color:#f59e0b;">Pinch</strong> -- select / draw / grab<br>
-        <strong style="color:#10b981;">Open</strong> -- release / deselect<br>
-        <strong style="color:#ef4444;">Fist</strong> (hold 1.5s) -- clear all<br>
-        <strong style="color:#8b5cf6;">Spread</strong> -- zoom / resize<br>
-        <strong style="color:#f472b6;">Peace</strong> -- cycle mode<br>
+        <strong style="color:#22d3ee;">Point</strong> — move / hover<br>
+        <strong style="color:#f59e0b;">Pinch</strong> — select / draw / measure<br>
+        <strong style="color:#10b981;">Open</strong> — release<br>
+        <strong style="color:#f472b6;">Peace</strong> — next mode<br>
+        <strong style="color:#ef4444;">Fist</strong> (hold) — clear all<br>
         <br>
         <strong>Keyboard</strong><br>
-        <kbd>1-5</kbd> Switch mode
+        <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> Mode
         <kbd>C</kbd> Clear
-        <kbd>Z</kbd> Undo<br>
-        <kbd>H</kbd> Toggle help
-        <kbd>D</kbd> Debug borders
+        <kbd>Z</kbd> Undo
+        <kbd>H</kbd> Help
       </div>
     </aside>
   </div>
   <script type="module" src="/src/main.ts"></script>
+  <script>
+    // Generate bookmarklet URL dynamically from the deployed base
+    const BOOKMARKLET_URL = "https://gaspardcoche.github.io/gesture-control/bookmarklet.js";
+    const code = `javascript:void((function(){if(document.getElementById('gesture-ctl-injected'))return;var s=document.createElement('script');s.id='gesture-ctl-injected';s.src='${BOOKMARKLET_URL}?t='+Date.now();document.head.appendChild(s);})())`;
+    document.getElementById('bookmarklet-btn').href = code;
+  </script>
 </body>
 </html>

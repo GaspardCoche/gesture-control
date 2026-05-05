@@ -2,7 +2,6 @@ import { initDetector, detect, type GestureState, type GestureType } from "./ges
 import { ModeManager } from "./modes";
 import { CanvasOverlay } from "./overlay/canvas-overlay";
 import { DOMInspector } from "./overlay/dom-inspector";
-import { ConsolePanel } from "./overlay/console-panel";
 import { HUD } from "./overlay/hud";
 
 async function main() {
@@ -23,7 +22,6 @@ async function main() {
   const modes = new ModeManager();
   const canvas = new CanvasOverlay(overlayRoot);
   const inspector = new DOMInspector(overlayRoot);
-  const consolePanel = new ConsolePanel(overlayRoot);
   const hud = new HUD(overlayRoot);
 
   hud.updateMode(modes.current);
@@ -31,8 +29,6 @@ async function main() {
     hud.updateMode(mode);
     canvas.setHighlight(null);
     inspector.select(null);
-    if (mode === "console") consolePanel.show();
-    else consolePanel.hide();
   });
 
   let lastGesture: GestureType = "NONE";
@@ -63,9 +59,6 @@ async function main() {
             canvas.setHighlight(null);
           }
         }
-        if (mode === "spotlight") {
-          canvas.spotlightCenter = { ...canvas.smoothCursor };
-        }
         break;
 
       case "PINCH":
@@ -75,26 +68,15 @@ async function main() {
             inspector.select(el);
             const rect = el.getBoundingClientRect();
             canvas.setHighlight(rect, inspector.getTagLabel(el));
-            consolePanel.logAction(`Selected <${el.tagName.toLowerCase()}> ${el.id ? "#" + el.id : ""}`);
           }
         }
         if (mode === "draw") {
           if (!canvas.isDrawing) canvas.startStroke();
           canvas.addStrokePoint();
         }
-        if (mode === "spotlight") {
-          canvas.spotlightCenter = { ...canvas.smoothCursor };
-        }
         if (mode === "measure") {
           if (type !== lastGesture) {
             canvas.addMeasurePoint();
-            consolePanel.logAction(`Measure point at (${Math.round(canvas.smoothCursor.x)}, ${Math.round(canvas.smoothCursor.y)})`);
-          }
-        }
-        if (mode === "console") {
-          if (type !== lastGesture) {
-            inspector.toggleDebugBorders();
-            consolePanel.logAction(`Debug borders: ${inspector.debugBorders ? "ON" : "OFF"}`);
           }
         }
         break;
@@ -103,30 +85,12 @@ async function main() {
         if (Date.now() - gestureStartTime > 1200 && lastGesture === "FIST") {
           canvas.clearAll();
           inspector.select(null);
-          if (mode === "console") consolePanel.clear();
-          consolePanel.logAction("Cleared all");
           gestureStartTime = Date.now() + 5000;
-        }
-        break;
-
-      case "SPREAD":
-        if (mode === "spotlight" && canvas.spotlightCenter) {
-          canvas.spotlightRadius = Math.min(400, canvas.spotlightRadius + 2);
-        }
-        if (mode === "console") {
-          if (type !== lastGesture) {
-            inspector.toggleDebugSpacing();
-            consolePanel.logAction(`Debug spacing: ${inspector.debugSpacing ? "ON" : "OFF"}`);
-          }
         }
         break;
 
       case "OPEN":
         if (mode === "draw" && canvas.isDrawing) canvas.endStroke();
-        if (mode === "spotlight") {
-          canvas.spotlightCenter = null;
-          canvas.spotlightRadius = 120;
-        }
         if (mode === "inspect") {
           canvas.setHighlight(null);
           inspector.select(null);
@@ -137,7 +101,6 @@ async function main() {
         if (Date.now() - peaceDebounce > 600) {
           modes.cycle();
           peaceDebounce = Date.now();
-          consolePanel.logAction(`Mode: ${modes.current}`);
         }
         break;
     }
@@ -155,31 +118,13 @@ async function main() {
     hud.updateGesture("NONE", 0);
   }
 
-  // WebSocket bridge (optional)
-  try {
-    const ws = new WebSocket("ws://localhost:8765");
-    ws.onopen = () => {
-      statusEl.textContent += " | Bridge connected";
-    };
-    ws.onmessage = () => {};
-  } catch {
-    // Bridge not running
-  }
-
-  // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     if (e.key === "1") modes.set("inspect");
     if (e.key === "2") modes.set("draw");
-    if (e.key === "3") modes.set("spotlight");
-    if (e.key === "4") modes.set("console");
-    if (e.key === "5") modes.set("measure");
+    if (e.key === "3") modes.set("measure");
     if (e.key === "c" || e.key === "C") { canvas.clearAll(); inspector.select(null); }
     if (e.key === "z" || e.key === "Z") canvas.undoStroke();
     if (e.key === "h" || e.key === "H") hud.toggleHelp();
-    if (e.key === "d" || e.key === "D") {
-      inspector.toggleDebugBorders();
-      consolePanel.logAction(`Debug borders: ${inspector.debugBorders ? "ON" : "OFF"}`);
-    }
   });
 
   function loop() {
@@ -194,12 +139,10 @@ async function main() {
 
     canvas.render(lastGesture, modes.current);
     hud.updateFPS();
-
     requestAnimationFrame(loop);
   }
 
   loop();
-  consolePanel.logAction("Gesture DevTools initialized");
 }
 
 main();

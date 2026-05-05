@@ -246,9 +246,17 @@ async function main() {
     }
     canvas.trail = [];
     lastGesture = "NONE";
-    scrollCtrl.reset();
     hud.updateGesture("NONE", 0);
   }
+
+  if (location.search.includes("debug") || localStorage.getItem("gc_debug") === "1") {
+    scrollCtrl.setDebug(true);
+    console.info("[gesture-control] debug mode ON — scroll events will be logged");
+  }
+  (window as any).__gc = {
+    enableDebug: () => { localStorage.setItem("gc_debug", "1"); scrollCtrl.setDebug(true); console.info("debug ON, reload to also enable on next session"); },
+    disableDebug: () => { localStorage.removeItem("gc_debug"); scrollCtrl.setDebug(false); console.info("debug OFF"); },
+  };
 
   document.addEventListener("keydown", (e) => {
     const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();

@@ -1,74 +1,70 @@
-# Gesture Control — MediaPipe + Three.js + Google Meet Extension
+# Gesture DevTools
 
-Hand gesture recognition for live presentations, 3D manipulation, and code interaction.
+Inspect DOM elements, draw annotations, measure distances, and control DevTools — all through real-time hand gesture recognition.
 
-## Components
+**Live demo:** https://gaspardcoche.github.io/gesture-control/
 
-### 1. Three.js Playground (`/`)
-Interactive 3D scene controlled by hand gestures. 5 gestures mapped to actions (grab, move, zoom, rotate, release).
+## Features
+
+| Mode | Gesture | Action |
+|------|---------|--------|
+| **Inspect** | Point | Hover-highlight DOM elements |
+| | Pinch | Select element, show computed styles and dimensions |
+| | Open | Deselect |
+| **Draw** | Pinch | Freehand annotations on the page |
+| | Open | End stroke |
+| **Spotlight** | Point | Position spotlight |
+| | Pinch | Grab spotlight |
+| | Spread | Resize spotlight |
+| **Console** | Pinch | Toggle debug borders |
+| | Spread | Toggle spacing visualization |
+| **Measure** | Pinch | Set measurement points (shows pixel distance) |
+
+**Universal gestures:**
+- **Peace sign** — cycle to next mode
+- **Fist** (hold 1.5s) — clear all annotations
+- **Keyboard:** `1-5` modes, `C` clear, `Z` undo, `H` help, `D` debug borders
+
+## Quick Start
 
 ```bash
+npm install
 npm run dev          # localhost:5173
-npm run bridge       # WebSocket bridge on port 8765
 ```
 
-### 2. Google Meet Extension (`/extension/`)
-Chrome extension that overlays gesture-based annotations on Google Meet calls.
+## Chrome Extension (any website)
 
-**Features:**
-- **Pointer** — point with index finger to show a cursor visible to all (screen share)
-- **Draw** — pinch to draw freehand annotations on screen
-- **Spotlight** — pinch to create a focus spotlight, spread to resize
-- **Shapes** — peace sign to cycle modes
-- **Clear** — hold fist for 1.5s or press C
-
-**Install:**
 1. Open `chrome://extensions`
 2. Enable "Developer mode"
-3. Click "Load unpacked" → select `extension/` folder
-4. Join a Google Meet call
+3. Click "Load unpacked" -> select `extension/` folder
+4. Navigate to any website
 5. Press **F9** to activate
 
-**Keyboard shortcuts:**
-| Key | Action |
-|-----|--------|
-| F9 | Toggle on/off |
-| 1 | Pointer mode |
-| 2 | Draw mode |
-| 3 | Spotlight mode |
-| C | Clear all annotations |
-| Z | Undo last stroke |
+## Deploy
 
-**Gestures:**
-| Gesture | Action |
-|---------|--------|
-| Point (index up) | Move cursor |
-| Pinch (index+thumb) | Draw / grab spotlight |
-| Peace (index+middle) | Cycle modes |
-| Spread (all fingers wide) | Zoom spotlight |
-| Fist (hold 1.5s) | Clear all |
-| Open hand | Release / reset |
+```bash
+npm run deploy       # builds + deploys to GitHub Pages
+```
 
 ## Architecture
 
 ```
-Webcam → MediaPipe HandLandmarker (GPU, 30fps)
-  ↓ 21 landmarks
+Webcam -> MediaPipe HandLandmarker (GPU, 30fps)
+  | 21 landmarks
 Gesture Classifier (pinch, point, fist, peace, spread, open)
-  ↓
-Action Router
-  ├── Canvas Overlay (pointer, drawings, spotlight)
-  ├── WebSocket Bridge (port 8765) → external tools
-  └── Chrome Extension UI (HUD badges, mode indicator)
+  |
+Mode Router (inspect / draw / spotlight / console / measure)
+  |-- Canvas Overlay (pointer, drawings, spotlight, measurements, element highlights)
+  |-- DOM Inspector (elementsFromPoint, computed styles panel)
+  |-- Console Panel (intercepted logs, debug actions)
+  |-- HUD (mode badge, gesture indicator, FPS counter)
+  +-- WebSocket Bridge (port 8765) -> external tools
 ```
 
 ## Tech Stack
-- @mediapipe/tasks-vision 0.10.x (WASM, GPU delegate)
-- Three.js 0.170+ (playground)
-- Vite 6 + TypeScript (dev)
-- Chrome Extension Manifest V3
 
-## Requirements
-- Chrome 120+ (for MediaPipe WASM + GPU)
-- Webcam access
-- macOS / Windows / Linux
+- @mediapipe/tasks-vision 0.10.x (WASM, GPU delegate)
+- Canvas 2D (overlay rendering)
+- Vite 6 + TypeScript
+- Chrome Extension Manifest V3
+- GitHub Pages (deployment)

@@ -201,7 +201,7 @@
       .sample-cards { grid-template-columns: 1fr; }
     }
   </style>
-  <script type="module" crossorigin src="/gesture-control/assets/index-B1tb0r9-.js"></script>
+  <script type="module" crossorigin src="/gesture-control/assets/index-B4ncOeYe.js"></script>
 </head>
 <body>
   <div class="page-wrapper">
@@ -226,7 +226,7 @@
         </div>
       </section>
 
-      <h2 class="section-title">3 Modes, 5 Gestures</h2>
+      <h2 class="section-title">3 Modes, 8 Gestures — Hand + Eye + Voice</h2>
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">&#128269;</div>
@@ -243,6 +243,11 @@
           <h3>Measure</h3>
           <p>Pinch twice to set two points — see the pixel distance between them instantly.</p>
         </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127908;</div>
+          <h3>Voice Feedback</h3>
+          <p>Select an element, press V to dictate what's wrong. Generates an AI-ready prompt with element context.</p>
+        </div>
       </div>
 
       <h2 class="section-title">Gesture Reference</h2>
@@ -256,6 +261,9 @@
           <tr><td><span class="gesture-emoji">&#9995;</span> Open hand</td><td>Release / Deselect / End stroke</td></tr>
           <tr><td><span class="gesture-emoji">&#9996;</span> Peace sign</td><td>Switch to next mode</td></tr>
           <tr><td><span class="gesture-emoji">&#9994;</span> Fist (hold 1.5s)</td><td>Clear all annotations</td></tr>
+          <tr><td><span class="gesture-emoji">&#128077;</span> Thumbs up</td><td>Toggle eye tracking on/off</td></tr>
+          <tr><td><span class="gesture-emoji">&#9995;</span> Open + move wrist</td><td>Scroll page up/down touchlessly</td></tr>
+          <tr><td><span class="gesture-emoji">&#127908;</span> V key (element selected)</td><td>Record voice feedback → AI prompt</td></tr>
         </tbody>
       </table>
 
@@ -294,7 +302,7 @@
       </div>
 
       <footer class="demo-footer">
-        <span>Gesture DevTools v2.0 — 3 modes, works anywhere</span>
+        <span>Gesture DevTools v3.1 — hand + eye + voice, works anywhere</span>
         <a href="https://github.com/GaspardCoche/gesture-control" target="_blank">GitHub</a>
       </footer>
     </main>
@@ -314,12 +322,17 @@
         <strong style="color:#10b981;">Open</strong> — release<br>
         <strong style="color:#f472b6;">Peace</strong> — next mode<br>
         <strong style="color:#ef4444;">Fist</strong> (hold) — clear all<br>
+        <strong style="color:#22d3ee;">Thumbs up</strong> — toggle eye tracking<br>
+        <strong style="color:#a78bfa;">Open + move</strong> — scroll page<br>
         <br>
         <strong>Keyboard</strong><br>
         <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> Mode
         <kbd>C</kbd> Clear
         <kbd>Z</kbd> Undo
         <kbd>H</kbd> Help
+        <kbd>E</kbd> Eye
+        <kbd>V</kbd> Voice
+        <kbd>F</kbd> Feedback
       </div>
     </aside>
   </div>

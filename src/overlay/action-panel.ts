@@ -4,7 +4,19 @@ import { askClaudeStream, hasApiKey } from "../ai/anthropic-client";
 import type { ElementInfo } from "./dom-inspector";
 import { icon } from "./icons";
 import { findSimilar, extractData } from "./similar-finder";
+import { analyze, type DetectedPattern, type PatternKind } from "./dom-analyzer";
 import DOMPurify from "dompurify";
+
+const PATTERN_ICONS: Record<PatternKind, { color: string; emoji: string }> = {
+  list: { color: "#67e8f9", emoji: "≡" },
+  grid: { color: "#a78bfa", emoji: "▦" },
+  table: { color: "#fcd34d", emoji: "⊞" },
+  form: { color: "#10b981", emoji: "✎" },
+  nav: { color: "#fca5a5", emoji: "→" },
+  cards: { color: "#f472b6", emoji: "▤" },
+  article: { color: "#cbd5e1", emoji: "¶" },
+  hero: { color: "#fbbf24", emoji: "★" },
+};
 
 const DOMPURIFY_CFG: any = {
   ALLOWED_TAGS: ["pre", "code", "strong", "em", "br", "div", "span", "ul", "ol", "li", "p", "h3", "h4"],
@@ -90,6 +102,16 @@ export class ActionPanel {
         #gesture-action-panel .ap-key-status.has { background: rgba(16,185,129,0.15); color: #6ee7b7; }
         #gesture-action-panel .ap-key-status.no { background: rgba(245,158,11,0.15); color: #fcd34d; cursor: pointer; }
       </style>
+
+      <div class="ap-section">
+        <div class="ap-title">
+          <span style="display:inline-flex;align-items:center;gap:5px;">${icon("layers", 11, { stroke: "#94a3b8" })} Detected blocks</span>
+          <button class="ap-btn" id="ap-rescan" style="font-size:9.5px;padding:3px 8px;">Scan</button>
+        </div>
+        <div id="ap-detected" style="font-size: 10.5px; color: #64748b;">
+          <span>Click <strong>Scan</strong> to auto-detect lists, grids, tables, forms…</span>
+        </div>
+      </div>
 
       <div class="ap-section">
         <div class="ap-title">
@@ -277,6 +299,59 @@ export class ActionPanel {
     $("#ap-csv").addEventListener("click", () => this.exportData("csv"));
     $("#ap-json").addEventListener("click", () => this.exportData("json"));
     $("#ap-clear").addEventListener("click", () => this.clear());
+    $("#ap-rescan").addEventListener("click", () => this.runDetection());
+  }
+
+  private runDetection(): void {
+    const detectedEl = this.root.querySelector("#ap-detected") as HTMLElement;
+    detectedEl.innerHTML = `<span style="color:#64748b;">Scanning…</span>`;
+    requestAnimationFrame(() => {
+      const patterns = analyze();
+      if (patterns.length === 0) {
+        detectedEl.innerHTML = `<span style="color:#64748b;">No clear patterns found on this page.</span>`;
+        return;
+      }
+      detectedEl.innerHTML = patterns.map((p, idx) => {
+        const ico = PATTERN_ICONS[p.kind];
+        return `
+          <button class="ap-detected-row" data-pat="${idx}" style="
+            display:flex; align-items:center; gap:8px; width:100%;
+            padding: 6px 8px; border-radius: 6px;
+            background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06);
+            color: #cbd5e1; font-family: inherit; font-size: 11px; font-weight: 500;
+            cursor: pointer; margin-bottom: 4px; text-align: left;
+            transition: all .12s;
+          ">
+            <span style="display:inline-flex;width:20px;height:20px;border-radius:5px;background:${ico.color}22;border:1px solid ${ico.color}55;color:${ico.color};font-weight:700;font-size:11px;align-items:center;justify-content:center;">${ico.emoji}</span>
+            <span style="flex:1;">${this.esc(p.label)}</span>
+            <span style="color:#64748b;font-size:10px;">+ add</span>
+          </button>
+        `;
+      }).join("");
+
+      detectedEl.querySelectorAll<HTMLElement>("[data-pat]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.dataset.pat!, 10);
+          const pat = patterns[idx];
+          if (!pat || !this.hooks?.buildElementInfo) return;
+          let added = 0;
+          for (const child of pat.children) {
+            if (this.items.some((i) => i.info.element === child)) continue;
+            const info = this.hooks.buildElementInfo(child);
+            this.add(child, info);
+            added++;
+          }
+          window.dispatchEvent(new CustomEvent("gc-toast", {
+            detail: { msg: `+ ${added} elements from ${pat.kind}`, color: "#10b981" },
+          }));
+        });
+        btn.addEventListener("mouseenter", () => {
+          const idx = parseInt(btn.dataset.pat!, 10);
+          const pat = patterns[idx];
+          if (pat?.container) (pat.container as HTMLElement).scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+      });
+    });
   }
 
   private refreshList(): void {

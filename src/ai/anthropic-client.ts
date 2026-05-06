@@ -1,3 +1,5 @@
+import { trackCall } from "./cost-tracker";
+
 const KEY_STORAGE = "gc_anthropic_key";
 const MODEL_STORAGE = "gc_anthropic_model";
 
@@ -134,6 +136,10 @@ export async function askClaudeStream(prompt: string, cb: StreamCallbacks, signa
       }
     }
     cb.onDone(full);
+    const inputTokens = Math.ceil(prompt.length / 4);
+    const outputTokens = Math.ceil(full.length / 4);
+    trackCall(model, inputTokens, outputTokens);
+    window.dispatchEvent(new CustomEvent("gc-cost-updated"));
   } catch (err: any) {
     if (err?.name === "AbortError") {
       cb.onDone(full);

@@ -1,4 +1,5 @@
 import { getApiKey, setApiKey, clearApiKey, getModel, setModel, ANTHROPIC_MODELS, testApiKey } from "../ai/anthropic-client";
+import { PRICING, estimatePerCallCost, getSessionUsage, resetUsage, formatCost } from "../ai/cost-tracker";
 import { icon } from "./icons";
 
 export class SettingsPanel {
@@ -7,8 +8,10 @@ export class SettingsPanel {
   private onChangeCb?: () => void;
 
   constructor(container: HTMLElement) {
+    window.addEventListener("gc-cost-updated", () => { if (this.visible) this.refreshCost(); });
     this.panel = document.createElement("div");
     this.panel.id = "gesture-settings-panel";
+    this.panel.setAttribute("data-gc-ui", "true");
     this.panel.style.cssText = `
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 460px; max-width: calc(100vw - 32px);
@@ -74,6 +77,19 @@ export class SettingsPanel {
         </div>
 
         <div id="gset-status" style="font-size:12px; padding: 10px 12px; border-radius: 8px; display:none;"></div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px;">
+          <div style="font-size:10px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Cost · this session</div>
+          <div id="gset-usage" style="font-size:11px; color:#94a3b8; line-height:1.6;"></div>
+          <div style="font-size:10px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; margin: 14px 0 6px;">Per-call estimate</div>
+          <div id="gset-pricing" style="font-size:10.5px; color:#94a3b8;"></div>
+          <div style="font-size:10px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; margin: 14px 0 6px;">Free alternatives</div>
+          <div style="font-size:10.5px; color:#94a3b8; line-height:1.7;">
+            <strong style="color:#a5b4fc;">Claude.ai web</strong> (free tier): export <code style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:0 4px;border-radius:3px;">.md</code>, paste into a free conversation.<br/>
+            <strong style="color:#a5b4fc;">Claude Code Pro ($20/mo)</strong>: <code style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:0 4px;border-radius:3px;">claude &lt; gesture-task.md</code> — included.<br/>
+            <strong style="color:#a5b4fc;">Templates</strong>: 90% of common tasks (Accessible / Modernize / Mobile / Cleanup) work with curated CSS — no AI call needed.
+          </div>
+        </div>
 
         <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:4px;">
           <button id="gset-clear" type="button" style="
@@ -181,9 +197,40 @@ export class SettingsPanel {
 
   show(): void {
     this.load();
+    this.refreshCost();
     this.visible = true;
     this.panel.style.display = "block";
     setTimeout(() => (this.panel.querySelector("#gset-key") as HTMLInputElement).focus(), 50);
+  }
+
+  refreshCost(): void {
+    const usageEl = this.panel.querySelector("#gset-usage") as HTMLElement | null;
+    const pricingEl = this.panel.querySelector("#gset-pricing") as HTMLElement | null;
+    if (!usageEl || !pricingEl) return;
+    const usage = getSessionUsage();
+    if (usage.calls === 0) {
+      usageEl.innerHTML = `<span style="color:#64748b;">No calls yet — keep this tab open across calls.</span>`;
+    } else {
+      const byModelLines = Object.entries(usage.byModel)
+        .map(([m, d]) => `${PRICING[m]?.label ?? m}: ${d.calls} call${d.calls > 1 ? "s" : ""} · ${formatCost(d.cost)}`)
+        .join(" · ");
+      usageEl.innerHTML = `
+        <div><strong style="color:#10b981;">${formatCost(usage.totalCost)}</strong> · ${usage.calls} call${usage.calls > 1 ? "s" : ""} · ${(usage.totalInputTokens / 1000).toFixed(1)}k in / ${(usage.totalOutputTokens / 1000).toFixed(1)}k out</div>
+        <div style="font-size:10px; color:#64748b; margin-top:3px;">${byModelLines}</div>
+        <button id="gset-reset-cost" style="margin-top:6px; padding: 3px 8px; border-radius: 5px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; font-size: 10px; cursor: pointer; font-family: inherit;">Reset</button>
+      `;
+      const reset = usageEl.querySelector("#gset-reset-cost");
+      if (reset) reset.addEventListener("click", () => { resetUsage(); this.refreshCost(); });
+    }
+
+    pricingEl.innerHTML = Object.values(PRICING).map((p) => {
+      const cost = estimatePerCallCost(p.id);
+      const isCurrent = p.id === getModel();
+      const tag = isCurrent ? `<span style="font-size:9px;padding:0 5px;border-radius:3px;background:rgba(99,102,241,0.18);color:#a5b4fc;font-weight:700;margin-left:4px;">CURRENT</span>` : "";
+      return `<div style="margin-bottom: 3px; line-height: 1.5;">
+        <strong style="color:#cbd5e1;">${p.label}</strong>: ~${formatCost(cost)}/call · <span style="color:#64748b;">${p.qualityNote}</span>${tag}
+      </div>`;
+    }).join("");
   }
 
   hide(): void {

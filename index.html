@@ -6,8 +6,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Gesture Control v5.1 — Curate elements for Claude Code</title>
-  <meta name="description" content="Hands-free DOM curation. Pinch to capture elements, send a structured task to Claude Code." />
+  <title>Gesture Control v6.0 — Scrape any site, hands-free</title>
+  <meta name="description" content="Load any URL, curate DOM elements with hand gestures, send a Markdown task to Claude Code." />
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <style>
@@ -25,40 +25,30 @@
       --primary: #6366f1;
       --primary-2: #8b5cf6;
       --accent: #22d3ee;
-      --pink: #ec4899;
       --warning: #f59e0b;
       --success: #10b981;
       --danger: #ef4444;
       --grad-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
     }
     body {
-      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-family: 'Inter', system-ui, sans-serif;
       font-feature-settings: 'cv02','cv11','ss01';
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      overflow-x: hidden;
+      background: var(--bg); color: var(--text);
+      line-height: 1.5; overflow: hidden;
       letter-spacing: -0.005em;
+      height: 100vh;
     }
-    .app-shell {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
-      min-height: 100vh;
-    }
-    .main { max-height: 100vh; overflow-y: auto; }
-    .main::-webkit-scrollbar { width: 8px; }
-    .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .app-shell { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
 
     .topbar {
-      position: sticky; top: 0; z-index: 50;
       backdrop-filter: blur(20px) saturate(140%);
       -webkit-backdrop-filter: blur(20px) saturate(140%);
-      background: rgba(7,7,11,0.7);
+      background: rgba(7,7,11,0.85);
       border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      display: flex; align-items: center; gap: 16px;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 14px;
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; flex-shrink: 0; }
     .brand-icon {
       width: 26px; height: 26px; border-radius: 7px;
       background: var(--grad-primary);
@@ -66,114 +56,77 @@
       box-shadow: 0 4px 14px rgba(99,102,241,0.3);
     }
     .brand-icon svg { color: white; }
-    .topbar-info { font-size: 11px; color: var(--muted); flex: 1; }
-    .topbar-info kbd {
-      display: inline-block; padding: 1px 6px; border-radius: 4px;
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
-      font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-2);
+
+    .url-bar {
+      flex: 1; display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px 4px 4px 14px;
+      max-width: 720px;
     }
+    .url-bar svg { color: var(--muted); flex-shrink: 0; }
+    .url-bar input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-size: 13px; padding: 7px 8px;
+      font-family: inherit;
+    }
+    .url-bar input::placeholder { color: var(--muted); }
+    .url-bar button {
+      padding: 7px 14px; border-radius: 6px; border: none;
+      background: var(--grad-primary); color: white; font-size: 12px;
+      font-weight: 600; cursor: pointer; font-family: inherit;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+    .url-bar button:hover { filter: brightness(1.1); }
+
     .topbar-link {
       color: var(--muted); text-decoration: none; font-size: 12px;
-      padding: 5px 10px; border-radius: 6px; transition: all .12s;
+      padding: 6px 10px; border-radius: 6px; transition: all .12s;
     }
     .topbar-link:hover { color: var(--text); background: var(--surface); }
 
-    .workspace { padding: 24px 32px; }
-    .ws-eyebrow {
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--primary);
-      margin-bottom: 8px;
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      overflow: hidden;
     }
-    .ws-title {
-      font-size: 22px; font-weight: 800; letter-spacing: -0.022em;
-      margin-bottom: 6px;
+    .target-area {
+      position: relative;
+      background: var(--bg-elev);
+      overflow: hidden;
     }
-    .ws-lead {
-      font-size: 13px; color: var(--muted); max-width: 640px;
-      margin-bottom: 20px;
+    #target-frame {
+      width: 100%; height: 100%; border: none; background: white;
+      display: none;
     }
-
-    /* test workspace widgets */
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-    .kpi-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px;
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; padding: 40px; text-align: center;
     }
-    .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 600; }
-    .kpi-value { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 2px; }
-    .kpi-delta { font-size: 11px; font-weight: 600; }
-    .kpi-delta.up { color: var(--success); }
-    .kpi-delta.down { color: var(--danger); }
+    .empty-state svg { color: var(--muted); margin-bottom: 16px; }
+    .empty-state h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px; }
+    .empty-state p { font-size: 13px; color: var(--muted); max-width: 440px; line-height: 1.6; }
+    .empty-state .hint { margin-top: 18px; font-size: 11px; color: var(--muted); padding: 10px 14px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+    .empty-state kbd { background: var(--border); padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-2); }
 
-    .chart-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    .frame-error {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px; text-align: center;
+      background: var(--bg-elev);
     }
-    .chart-title { font-size: 12px; font-weight: 700; margin-bottom: 12px; }
-    .chart-svg { width: 100%; height: 160px; }
+    .frame-error h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--warning); }
+    .frame-error p { font-size: 12px; color: var(--text-2); max-width: 480px; line-height: 1.6; margin-bottom: 14px; }
+    .frame-error .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .frame-error a { padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+    .frame-error a.primary { background: var(--grad-primary); color: white; }
+    .frame-error a.secondary { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
 
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .panel {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px;
-    }
-    .panel h4 { font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--text-2); }
-
-    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-    .data-table th { padding: 8px 10px; text-align: left; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; border-bottom: 1px solid var(--border); }
-    .data-table td { padding: 8px 10px; font-size: 11px; border-bottom: 1px solid var(--border); }
-    .data-table tr:last-child td { border-bottom: none; }
-    .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; }
-    .badge.success { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-    .badge.warning { background: rgba(245,158,11,0.15); color: #fcd34d; }
-    .badge.danger { background: rgba(239,68,68,0.15); color: #fca5a5; }
-
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-    .form-field label { display: block; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; font-weight: 600; }
-    .form-field input, .form-field select, .form-field textarea {
-      width: 100%; padding: 7px 10px;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 6px; color: var(--text); font-size: 12px;
-      font-family: inherit;
-    }
-    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
-      outline: none; border-color: var(--primary);
-    }
-
-    .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
-    .switch-row:last-child { border-bottom: none; }
-    .switch-row-label { font-size: 11px; }
-    .switch-row-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
-    .switch { position: relative; width: 32px; height: 18px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 999px; cursor: pointer; }
-    .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-2); transition: all .15s; }
-    .switch.on { background: var(--primary); border-color: var(--primary); }
-    .switch.on::after { left: 16px; background: white; }
-
-    .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .kanban-col { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
-    .kanban-col-title { font-size: 11px; font-weight: 700; margin-bottom: 8px; padding: 0 4px; }
-    .kanban-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 6px; }
-    .kanban-card-title { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-    .kanban-card-meta { font-size: 9px; color: var(--muted); }
-
-    .modal-demo { background: rgba(0,0,0,0.5); padding: 24px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-    .modal-card { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px; padding: 20px; max-width: 360px; width: 100%; }
-    .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-    .modal-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
-    .modal-actions { display: flex; gap: 6px; justify-content: flex-end; }
-    .btn { padding: 7px 14px; border: none; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; }
-    .btn-primary { background: var(--grad-primary); color: white; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
-    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); }
-    .btn-danger { background: var(--danger); color: white; }
-
-    /* sidebar */
     .sidebar {
       background: linear-gradient(180deg, var(--surface) 0%, var(--bg-elev) 100%);
       border-left: 1px solid var(--border);
-      padding: 14px;
+      padding: 12px;
       display: flex; flex-direction: column; gap: 10px;
-      max-height: 100vh; overflow-y: auto;
-      position: sticky; top: 0;
+      overflow-y: auto;
     }
     #gesture-video-feed {
       width: 100%; border-radius: 10px;
@@ -185,243 +138,324 @@
       padding: 6px 10px; background: var(--surface-2);
       border-radius: 6px; text-align: center; border: 1px solid var(--border);
     }
-    .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
     .mode-btn {
-      padding: 8px 6px; border: 1px solid var(--border);
-      border-radius: 7px; background: var(--surface-2);
+      padding: 8px 4px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface-2);
       color: var(--muted); font-size: 10px; font-weight: 600;
       text-align: center; cursor: pointer;
       font-family: inherit;
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
       transition: all .12s;
     }
     .mode-btn:hover { border-color: var(--primary); color: var(--text); }
-    .mode-btn:hover svg { color: var(--primary); }
-    .sidebar-help {
-      font-size: 10px; color: var(--muted); line-height: 1.8;
-      padding: 10px 12px; background: var(--surface-2);
-      border-radius: 8px; border: 1px solid var(--border);
+    .sidebar-section {
+      font-size: 10px; color: var(--muted); line-height: 1.7;
+      padding: 8px 10px; background: var(--surface-2);
+      border-radius: 7px; border: 1px solid var(--border);
     }
-    .sidebar-help-title {
-      font-size: 10px; font-weight: 700; color: var(--text);
-      text-transform: uppercase; letter-spacing: 0.04em;
-      margin-bottom: 6px;
+    .sidebar-title {
+      font-size: 9.5px; font-weight: 700; color: var(--text);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 4px;
     }
-    .sidebar-help kbd {
-      background: var(--border); padding: 1px 5px; border-radius: 3px;
+    .sidebar-section kbd {
+      background: var(--border); padding: 0 5px; border-radius: 3px;
       font-family: ui-monospace, monospace; color: var(--text-2);
-      font-size: 10px;
+      font-size: 9.5px;
     }
 
+    /* FAB quick actions */
+    .fab-stack {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; z-index: 100000;
+    }
+    .fab {
+      padding: 10px 16px; border-radius: 999px; border: 1px solid var(--border-strong);
+      background: rgba(11,11,16,0.96); backdrop-filter: blur(16px);
+      color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: all .15s;
+    }
+    .fab:hover { transform: translateY(-2px); border-color: var(--primary); }
+    .fab.primary {
+      background: var(--grad-primary); border: none; color: white;
+      box-shadow: 0 8px 24px rgba(99,102,241,0.4);
+    }
+    .fab.primary:hover { filter: brightness(1.1); }
+
+    /* Onboarding modal */
+    .onboard-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100100; padding: 20px;
+    }
+    .onboard-modal {
+      max-width: 560px; width: 100%; padding: 28px;
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .onboard-modal h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px;
+      background: var(--grad-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .onboard-modal p { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; }
+    .onboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .onboard-card {
+      padding: 14px; border-radius: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+    }
+    .onboard-card-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.25); display: inline-flex; align-items: center; justify-content: center; color: var(--primary); margin-bottom: 8px; }
+    .onboard-card h4 { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .onboard-card p { font-size: 11px; color: var(--muted); margin: 0; line-height: 1.5; }
+    .onboard-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .onboard-actions button { padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .onboard-actions .primary { background: var(--grad-primary); color: white; border: none; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+    .onboard-actions .secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-strong); }
+
     @media (max-width: 900px) {
-      .app-shell { grid-template-columns: 1fr; }
+      .stage { grid-template-columns: 1fr; }
       .sidebar { display: none; }
-      .kpi-grid { grid-template-columns: 1fr 1fr; }
-      .grid-2, .kanban { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="app-shell">
-    <main class="main">
-      <nav class="topbar">
-        <div class="brand">
-          <span class="brand-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
-              <path d="M13 11V4a2 2 0 1 1 4 0v9"/>
-              <path d="M17 11V6a2 2 0 1 1 4 0v9a7 7 0 0 1-7 7H10a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0v2"/>
-            </svg>
-          </span>
-          Gesture Control
-        </div>
-        <div class="topbar-info">
-          Pinch · <kbd>double-pinch</kbd> send · <kbd>🤟 ILY</kbd> voice · <kbd>↑↓←→</kbd> zoom DOM · <kbd>D</kbd> debug · <kbd>H</kbd> help
-        </div>
-        <a class="topbar-link" href="https://github.com/GaspardCoche/gesture-control" target="_blank" rel="noopener">GitHub</a>
-      </nav>
-
-      <div class="workspace">
-        <div class="ws-eyebrow">Workspace</div>
-        <h1 class="ws-title">Curate DOM elements for Claude Code.</h1>
-        <p class="ws-lead">Pinch to add elements to your selection. Press <kbd style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;font-size:11px;">K</kbd> to send a structured Markdown task to Claude. The widgets below are real targets — try inspecting any of them.</p>
-
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">MRR</div>
-            <div class="kpi-value">$128,450</div>
-            <div class="kpi-delta up">+12.4%</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Active users</div>
-            <div class="kpi-value">8,243</div>
-            <div class="kpi-delta up">+847</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Conversion</div>
-            <div class="kpi-value">3.27%</div>
-            <div class="kpi-delta down">−0.4 pts</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Churn</div>
-            <div class="kpi-value">1.8%</div>
-            <div class="kpi-delta up">−0.3 pts</div>
-          </div>
-        </div>
-
-        <div class="chart-card">
-          <div class="chart-title">Revenue · last 30 days</div>
-          <svg class="chart-svg" viewBox="0 0 600 160" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="grad-rev" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
-                <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path d="M 0 120 L 30 100 L 60 110 L 90 85 L 120 95 L 150 70 L 180 80 L 210 60 L 240 75 L 270 50 L 300 65 L 330 45 L 360 55 L 390 35 L 420 45 L 450 25 L 480 40 L 510 20 L 540 35 L 570 15 L 600 30 L 600 160 L 0 160 Z" fill="url(#grad-rev)"/>
-            <path d="M 0 120 L 30 100 L 60 110 L 90 85 L 120 95 L 150 70 L 180 80 L 210 60 L 240 75 L 270 50 L 300 65 L 330 45 L 360 55 L 390 35 L 420 45 L 450 25 L 480 40 L 510 20 L 540 35 L 570 15 L 600 30" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <nav class="topbar">
+      <div class="brand">
+        <span class="brand-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
+            <path d="M13 11V4a2 2 0 1 1 4 0v9"/>
+            <path d="M17 11V6a2 2 0 1 1 4 0v9a7 7 0 0 1-7 7H10a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0v2"/>
           </svg>
-        </div>
+        </span>
+        Gesture Control
+      </div>
 
-        <div class="grid-2">
-          <div class="panel">
-            <h4>Tasks</h4>
-            <div class="kanban">
-              <div class="kanban-col">
-                <div class="kanban-col-title">To do</div>
-                <div class="kanban-card"><div class="kanban-card-title">Improve onboarding</div><div class="kanban-card-meta">#421 · GC</div></div>
-                <div class="kanban-card"><div class="kanban-card-title">Fix scroll lag</div><div class="kanban-card-meta">#430 · GC</div></div>
-              </div>
-              <div class="kanban-col">
-                <div class="kanban-col-title">Doing</div>
-                <div class="kanban-card"><div class="kanban-card-title">Voice commands FR</div><div class="kanban-card-meta">#412 · GC</div></div>
-              </div>
-              <div class="kanban-col">
-                <div class="kanban-col-title">Done</div>
-                <div class="kanban-card"><div class="kanban-card-title">Hand tracking init</div><div class="kanban-card-meta">#400 · GC</div></div>
-              </div>
-            </div>
-          </div>
+      <form class="url-bar" id="url-form" autocomplete="off">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <input id="url-input" type="text" placeholder="Paste any URL to scrape — e.g. https://news.ycombinator.com" />
+        <button type="submit">Load</button>
+      </form>
 
-          <div class="panel">
-            <h4>Settings</h4>
-            <div class="switch-row">
-              <div><div class="switch-row-label">Dark mode</div><div class="switch-row-desc">Auto-detect from system</div></div>
-              <div class="switch on" data-toggle></div>
-            </div>
-            <div class="switch-row">
-              <div><div class="switch-row-label">Email digest</div><div class="switch-row-desc">Daily at 8 AM</div></div>
-              <div class="switch" data-toggle></div>
-            </div>
-            <div class="switch-row">
-              <div><div class="switch-row-label">Beta features</div><div class="switch-row-desc">Early-access tools</div></div>
-              <div class="switch" data-toggle></div>
-            </div>
+      <a class="topbar-link" href="#" id="help-link">Help</a>
+      <a class="topbar-link" href="https://github.com/GaspardCoche/geste-control" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+
+    <div class="stage">
+      <div class="target-area">
+        <iframe id="target-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+
+        <div class="empty-state" id="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <h2>Paste a URL to scrape</h2>
+          <p>Load any website above. Pinch on the elements you want to capture, then send a Markdown task to Claude Code with all selectors + computed styles.</p>
+          <div class="hint">
+            Site refuses embedding? Drag the bookmarklet to your bookmarks bar:
+            <a id="bookmarklet-link" href="javascript:void(0);" style="display:inline-block;margin-top:6px;padding:5px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);text-decoration:none;font-weight:600;font-size:11px;cursor:grab;">↪ Gesture Control</a>
           </div>
         </div>
 
-        <div class="panel" style="margin-top:14px;">
-          <h4>Transactions</h4>
-          <table class="data-table">
-            <thead><tr><th>Date</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td>May 6</td><td>Acme</td><td>Enterprise</td><td>$2,400</td><td><span class="badge success">Paid</span></td></tr>
-              <tr><td>May 6</td><td>Globex</td><td>Pro</td><td>$199</td><td><span class="badge success">Paid</span></td></tr>
-              <tr><td>May 5</td><td>Initech</td><td>Pro</td><td>$199</td><td><span class="badge warning">Pending</span></td></tr>
-              <tr><td>May 5</td><td>Stark</td><td>Enterprise</td><td>$2,400</td><td><span class="badge success">Paid</span></td></tr>
-              <tr><td>May 4</td><td>Wayne</td><td>Pro</td><td>$199</td><td><span class="badge danger">Failed</span></td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="grid-2" style="margin-top:14px;">
-          <div class="panel">
-            <h4>New customer</h4>
-            <div class="form-row">
-              <div class="form-field"><label for="cust-first">First name</label><input id="cust-first" type="text" placeholder="Ada" /></div>
-              <div class="form-field"><label for="cust-last">Last name</label><input id="cust-last" type="text" placeholder="Lovelace" /></div>
-            </div>
-            <div class="form-row">
-              <div class="form-field"><label for="cust-email">Email</label><input id="cust-email" type="email" placeholder="ada@example.com" /></div>
-              <div class="form-field"><label for="cust-plan">Plan</label><select id="cust-plan"><option>Starter</option><option selected>Pro</option><option>Enterprise</option></select></div>
-            </div>
-            <div style="display:flex; gap:6px; margin-top:8px;">
-              <button class="btn btn-secondary">Cancel</button>
-              <button class="btn btn-primary">Create</button>
-            </div>
-          </div>
-
-          <div class="panel">
-            <h4>Confirmation modal</h4>
-            <div class="modal-demo">
-              <div class="modal-card">
-                <div class="modal-title">Delete this customer?</div>
-                <div class="modal-desc">All invoices, subscriptions, and audit logs will be permanently removed.</div>
-                <div class="modal-actions">
-                  <button class="btn btn-secondary">Cancel</button>
-                  <button class="btn btn-danger">Delete</button>
-                </div>
-              </div>
-            </div>
+        <div class="frame-error" id="frame-error">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:14px;">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <h3>This site refuses to be embedded</h3>
+          <p>Most modern sites set <code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;">X-Frame-Options: DENY</code>. Use the bookmarklet — it injects gesture-control directly into the live site.</p>
+          <div class="actions">
+            <a href="#" id="copy-bookmarklet" class="primary">Copy bookmarklet code</a>
+            <a href="#" id="open-direct" class="secondary" target="_blank" rel="noopener">Open URL in new tab</a>
+            <a href="#" id="dismiss-error" class="secondary">Try another URL</a>
           </div>
         </div>
+      </div>
 
-        <div class="panel" style="margin-top:14px;">
-          <h4>How to use with Claude Code</h4>
-          <ol style="font-size:12px; color:var(--text-2); line-height:1.8; padding-left:18px;">
-            <li>Pinch on each element you want to fix → it lands in the <strong>Selection tray</strong> (left).</li>
-            <li>Use <kbd style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:10px;">↑↓←→</kbd> arrow keys to zoom into parent / first child / siblings — like Selectorgadget.</li>
-            <li>Type your overall intent in the textarea, or press <kbd style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:10px;">V</kbd> + dictate.</li>
-            <li>Press <kbd style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:10px;">K</kbd> → a <code style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:11px;">.md</code> file downloads + your clipboard fills with the same content.</li>
-            <li>In your terminal: <code style="font-family:ui-monospace,monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:11px;">claude &lt; gesture-task-XXXXXXXX.md</code> or paste the clipboard into a Claude Code session.</li>
-          </ol>
+      <aside class="sidebar">
+        <video id="gesture-video-feed" autoplay playsinline muted></video>
+        <div id="status">Loading…</div>
+        <div class="mode-grid">
+          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'1'}))">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            Inspect
+          </button>
+          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'2'}))">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Draw
+          </button>
+          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'3'}))">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14L7 0 0 7l14 14 7-7z"/></svg>
+            Measure
+          </button>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-title">Two-hand gestures</div>
+          <strong style="color:#a5b4fc;">Clap</strong> · send to Claude<br/>
+          <strong style="color:#fcd34d;">Spread</strong> · clear all<br/>
+          <strong style="color:#67e8f9;">Both move ↕</strong> · scroll
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-title">Single hand</div>
+          <strong style="color:#67e8f9;">Pinch</strong> · add to selection<br/>
+          <strong style="color:#a78bfa;">🤟 ILY</strong> · voice toggle<br/>
+          <strong style="color:#fca5a5;">Fist (hold)</strong> · clear
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-title">Keyboard</div>
+          <kbd>K</kbd> send · <kbd>V</kbd> voice<br/>
+          <kbd>↑↓←→</kbd> zoom DOM<br/>
+          <kbd>S</kbd> AI key · <kbd>D</kbd> debug · <kbd>H</kbd> help
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="fab-stack">
+    <button class="fab primary" id="fab-send" title="Send curated selection to Claude Code (K)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Send to Claude <span id="fab-count" style="opacity:.7;font-weight:600;">(0)</span>
+    </button>
+    <button class="fab" id="fab-voice" title="Toggle voice (V)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
+      Voice
+    </button>
+    <button class="fab" id="fab-help" title="Help (H)">
+      ?
+    </button>
+    <button class="fab" id="fab-clear" title="Clear (Esc)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="onboard-overlay" id="onboard" style="display:none;">
+    <div class="onboard-modal">
+      <h2>Welcome to Gesture Control</h2>
+      <p>Hands-free DOM curation for Claude Code. Pick elements with gestures, dictate intent, and send a structured Markdown task in one move.</p>
+      <div class="onboard-grid">
+        <div class="onboard-card">
+          <div class="onboard-card-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          </div>
+          <h4>1. Paste a URL</h4>
+          <p>Use the address bar above. The site loads in a sandboxed frame. If embedding is blocked, use the bookmarklet.</p>
+        </div>
+        <div class="onboard-card">
+          <div class="onboard-card-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8c0-3 2-5 5-5s5 2 5 5"/><path d="M5 8v8a4 4 0 0 0 4 4h6"/><path d="M11 12V6"/></svg>
+          </div>
+          <h4>2. Pinch elements</h4>
+          <p>Each pinch adds an element to your selection (numbered tray on the left).</p>
+        </div>
+        <div class="onboard-card">
+          <div class="onboard-card-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11V6a2 2 0 1 1 4 0v5"/><path d="M13 11V4a2 2 0 1 1 4 0v9"/><path d="M17 11V6a2 2 0 1 1 4 0v9a7 7 0 0 1-7 7H10a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0v2"/></svg>
+          </div>
+          <h4>3. Clap with both hands</h4>
+          <p>Two-hand clap = send your task as Markdown. Or press <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">K</kbd>.</p>
+        </div>
+        <div class="onboard-card">
+          <div class="onboard-card-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/></svg>
+          </div>
+          <h4>4. Open with Claude</h4>
+          <p><code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:11px;">claude &lt; gesture-task.md</code> in your terminal — done.</p>
         </div>
       </div>
-    </main>
-
-    <aside class="sidebar">
-      <video id="gesture-video-feed" autoplay playsinline muted></video>
-      <div id="status">Loading…</div>
-      <div class="mode-grid">
-        <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'1'}))">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
-          Inspect
-        </button>
-        <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'2'}))">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-          Draw
-        </button>
-        <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'3'}))">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14L7 0 0 7l14 14 7-7z"/><path d="M5 5l3 3"/><path d="M9 9l3 3"/><path d="M13 13l3 3"/></svg>
-          Measure
-        </button>
+      <div class="onboard-actions">
+        <button class="secondary" id="onboard-skip">Skip</button>
+        <button class="primary" id="onboard-start">Get started</button>
       </div>
-      <div class="sidebar-help">
-        <div class="sidebar-help-title">Selection</div>
-        <kbd>Pinch</kbd> add &nbsp; <kbd>↑↓←→</kbd> zoom DOM<br/>
-        <kbd>K</kbd> send to Claude &nbsp; <kbd>Esc</kbd> clear all
-      </div>
-      <div class="sidebar-help">
-        <div class="sidebar-help-title">Voice</div>
-        <kbd>V</kbd> dictate · CSS commands or intent<br/>
-        <kbd>S</kbd> Anthropic key · <kbd>F</kbd> feedback panel
-      </div>
-      <div class="sidebar-help">
-        <div class="sidebar-help-title">Modes</div>
-        <kbd>1</kbd> Inspect · <kbd>2</kbd> Draw · <kbd>3</kbd> Measure<br/>
-        <kbd>W</kbd> whiteboard · <kbd>C</kbd> clear · <kbd>Z</kbd> undo
-      </div>
-      <div class="sidebar-help" style="font-size:9px;line-height:1.5;">
-        <div class="sidebar-help-title">Privacy</div>
-        Camera stays local. No streaming, no telemetry. Anthropic key stored in your browser.
-      </div>
-    </aside>
+    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>
   <script>
-    document.querySelectorAll('[data-toggle]').forEach(sw => {
-      sw.addEventListener('click', () => sw.classList.toggle('on'));
+    // Bookmarklet
+    const BOOKMARKLET_URL = "https://gaspardcoche.github.io/gesture-control/bookmarklet.js";
+    const code = `javascript:void((function(){if(document.getElementById('gesture-ctl-injected'))return;var s=document.createElement('script');s.id='gesture-ctl-injected';s.src='${BOOKMARKLET_URL}?t='+Date.now();document.head.appendChild(s);})())`;
+    const blink = document.getElementById('bookmarklet-link');
+    if (blink) blink.href = code;
+
+    // URL load
+    const form = document.getElementById('url-form');
+    const input = document.getElementById('url-input');
+    const frame = document.getElementById('target-frame');
+    const empty = document.getElementById('empty-state');
+    const errEl = document.getElementById('frame-error');
+    let loadTimer = null;
+    let frameLoaded = false;
+
+    function loadUrl(rawUrl) {
+      let url = rawUrl.trim();
+      if (!url) return;
+      if (!/^https?:\/\//.test(url)) url = "https://" + url;
+      try { new URL(url); } catch { return; }
+
+      empty.style.display = "none";
+      errEl.style.display = "none";
+      frame.style.display = "block";
+      frameLoaded = false;
+      frame.src = url;
+
+      if (loadTimer) clearTimeout(loadTimer);
+      loadTimer = setTimeout(() => {
+        if (!frameLoaded) {
+          frame.style.display = "none";
+          errEl.style.display = "flex";
+          document.getElementById('open-direct').href = url;
+          document.getElementById('copy-bookmarklet').addEventListener('click', (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(code);
+            e.target.textContent = "Copied ✓";
+          }, { once: true });
+          document.getElementById('dismiss-error').addEventListener('click', (e) => {
+            e.preventDefault();
+            errEl.style.display = "none";
+            empty.style.display = "flex";
+          }, { once: true });
+        }
+      }, 4000);
+    }
+
+    frame.addEventListener('load', () => { frameLoaded = true; });
+    form.addEventListener('submit', (e) => { e.preventDefault(); loadUrl(input.value); });
+
+    // FAB wiring
+    document.getElementById('fab-send').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })));
+    document.getElementById('fab-voice').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'v' })));
+    document.getElementById('fab-help').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' })));
+    document.getElementById('fab-clear').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    document.getElementById('help-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('onboard').style.display = 'flex';
+    });
+
+    // Onboarding
+    const onboard = document.getElementById('onboard');
+    if (!localStorage.getItem('gc_onboarded')) {
+      setTimeout(() => onboard.style.display = 'flex', 800);
+    }
+    document.getElementById('onboard-start').addEventListener('click', () => {
+      onboard.style.display = 'none';
+      localStorage.setItem('gc_onboarded', '1');
+    });
+    document.getElementById('onboard-skip').addEventListener('click', () => {
+      onboard.style.display = 'none';
+      localStorage.setItem('gc_onboarded', '1');
+    });
+
+    // Update count badge from main app via custom event
+    window.addEventListener('gc-selection-count', (e) => {
+      const count = e.detail || 0;
+      document.getElementById('fab-count').textContent = `(${count})`;
     });
   </script>
 </body>

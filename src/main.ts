@@ -15,6 +15,7 @@ import { executeCommand, undoLast, undoStackSize } from "./voice/command-executo
 import { SelectionTray } from "./overlay/selection-tray";
 import { SignatureDetector, type SignatureEvent } from "./gestures/signature";
 import { DebugHUD } from "./overlay/debug-hud";
+import { TwoHandDetector, type TwoHandEvent } from "./gestures/two-hand-gestures";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -70,9 +71,13 @@ async function main() {
   const settingsPanel = new SettingsPanel(overlayRoot);
   const selectionTray = new SelectionTray(overlayRoot);
   const signatureDetector = new SignatureDetector();
+  const twoHandDetector = new TwoHandDetector();
   const debugHud = new DebugHUD(overlayRoot);
   feedbackPanel.setOnOpenSettings(() => settingsPanel.show());
   settingsPanel.onChange(() => feedbackPanel.refreshKeyBadge());
+  selectionTray.setOnChange((count) => {
+    window.dispatchEvent(new CustomEvent("gc-selection-count", { detail: count }));
+  });
 
   let lastIndexY = 0;
   let lastWristY = 0;
@@ -313,6 +318,26 @@ async function main() {
       showToast("Debug HUD toggled", "#22d3ee");
     }
   });
+
+  twoHandDetector.setListener((event: TwoHandEvent) => {
+    if (event === "two-hand-clap") {
+      if (selectionTray.count() === 0) {
+        showToast("Select elements first (pinch)", "#f59e0b");
+        return;
+      }
+      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+      showToast("👏 Clap → sent to Claude", "#10b981");
+    } else if (event === "two-hand-spread") {
+      selectionTray.clear();
+      inspector.select(null);
+      canvas.setHighlight(null);
+      showToast("✋✋ Spread → cleared", "#f59e0b");
+    } else if (event === "two-hand-zoom-out") {
+      navigateDom("parent");
+    } else if (event === "two-hand-zoom-in") {
+      navigateDom("firstChild");
+    }
+  });
   (window as any).__gc = {
     enableDebug: () => { localStorage.setItem("gc_debug", "1"); scrollCtrl.setDebug(true); console.info("debug ON"); },
     disableDebug: () => { localStorage.removeItem("gc_debug"); scrollCtrl.setDebug(false); console.info("debug OFF"); },
@@ -364,6 +389,13 @@ async function main() {
 
     if (result.hand && result.hand.type !== "NONE") handleGesture(result.hand);
     else handleNoHand();
+
+    const twoH = twoHandDetector.feed(result.hand, result.hand2);
+    if (twoH.distance !== null && twoH.parallelDy !== null && Math.abs(twoH.parallelDy) > 0.005) {
+      const boost = twoH.parallelDy * 6000;
+      const px = Math.sign(boost) * Math.min(Math.abs(boost), 120);
+      window.scrollBy({ top: px, behavior: "auto" });
+    }
 
     canvas.render(lastGesture, modes.current, false);
     hud.updateFPS();

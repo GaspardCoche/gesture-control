@@ -12,10 +12,10 @@ import { FeedbackPanel } from "./overlay/feedback-panel";
 import { SettingsPanel } from "./overlay/settings-panel";
 import { matchCommand } from "./voice/command-grammar";
 import { executeCommand, undoLast, undoStackSize } from "./voice/command-executor";
-import { SelectionTray } from "./overlay/selection-tray";
 import { SignatureDetector, type SignatureEvent } from "./gestures/signature";
 import { DebugHUD } from "./overlay/debug-hud";
 import { TwoHandDetector, type TwoHandEvent } from "./gestures/two-hand-gestures";
+import { ActionPanel } from "./overlay/action-panel";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -69,15 +69,61 @@ async function main() {
   const feedbackStore = new FeedbackStore();
   const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
   const settingsPanel = new SettingsPanel(overlayRoot);
-  const selectionTray = new SelectionTray(overlayRoot);
+  const actionPanel = new ActionPanel(document.querySelector(".app-shell")!);
+  actionPanel.setHooks({
+    onApplyCss: (css, selectors) => applyCssToSelections(css, selectors),
+    onUndo: () => false,
+  });
+  actionPanel.setOnChange(() => {
+    /* count is internal */
+  });
   const signatureDetector = new SignatureDetector();
   const twoHandDetector = new TwoHandDetector();
   const debugHud = new DebugHUD(overlayRoot);
   feedbackPanel.setOnOpenSettings(() => settingsPanel.show());
-  settingsPanel.onChange(() => feedbackPanel.refreshKeyBadge());
-  selectionTray.setOnChange((count) => {
-    window.dispatchEvent(new CustomEvent("gc-selection-count", { detail: count }));
+  settingsPanel.onChange(() => {
+    feedbackPanel.refreshKeyBadge();
+    actionPanel.refreshKeyState();
   });
+  window.addEventListener("gc-open-settings", () => settingsPanel.show());
+  window.addEventListener("gc-toast", (e: any) => showToast(e.detail.msg, e.detail.color));
+
+  function applyCssToSelections(css: string, _selectors: string[]): { applied: number; failed: number } {
+    let applied = 0, failed = 0;
+    const items = actionPanel.getItems();
+    if (!items.length) return { applied: 0, failed: 0 };
+    const declarations = parseCssDeclarations(css);
+    for (const it of items) {
+      const el = it.info.element;
+      if (!el) { failed++; continue; }
+      try {
+        for (const [prop, val] of declarations) {
+          (el.style as any)[cssToCamel(prop)] = val;
+        }
+        applied++;
+      } catch {
+        failed++;
+      }
+    }
+    return { applied, failed };
+  }
+
+  function parseCssDeclarations(css: string): Array<[string, string]> {
+    const decls: Array<[string, string]> = [];
+    const noBraces = css.replace(/[^{}]+\{|\}/g, ";");
+    for (const part of noBraces.split(";")) {
+      const idx = part.indexOf(":");
+      if (idx < 0) continue;
+      const prop = part.slice(0, idx).trim();
+      const val = part.slice(idx + 1).trim().replace(/!important\s*$/, "").trim();
+      if (prop && val) decls.push([prop, val]);
+    }
+    return decls;
+  }
+
+  function cssToCamel(prop: string): string {
+    return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  }
 
   let lastIndexY = 0;
   let lastWristY = 0;
@@ -136,8 +182,8 @@ async function main() {
           feedbackStore.add(info, text, confidence);
           feedbackPanel.show();
           showToast("Feedback recorded — open panel (F)", "#a78bfa");
-        } else if (selectionTray.count() > 0) {
-          selectionTray.setIntent(text);
+        } else if (actionPanel.count() > 0) {
+          actionPanel.setIntent(text);
           showToast("Intent set — Send to Claude Code (K)", "#a78bfa");
         } else {
           showToast("Nothing selected", "#f59e0b");
@@ -170,8 +216,8 @@ async function main() {
       return;
     }
     const info = inspector.getInfo(target);
-    selectionTray.add(target, info);
-    showToast(`Added to selection (${selectionTray.count()})`, "#10b981");
+    actionPanel.add(target, info);
+    showToast(`Added to selection (${actionPanel.count()})`, "#10b981");
   }
 
   function navigateDom(dir: DomNavDirection): void {
@@ -242,8 +288,8 @@ async function main() {
             inspector.select(el);
             canvas.setHighlight(el.getBoundingClientRect(), inspector.getTagLabel(el));
             const info = inspector.getInfo(el);
-            selectionTray.add(el, info);
-            showToast(`Added (${selectionTray.count()})`, "#10b981");
+            actionPanel.add(el, info);
+            showToast(`Added (${actionPanel.count()})`, "#10b981");
           }
         }
         if (mode === "draw") {
@@ -286,22 +332,25 @@ async function main() {
     hud.updateGesture("NONE", 0);
   }
 
-  if (location.search.includes("debug") || localStorage.getItem("gc_debug") === "1") {
+  if (localStorage.getItem("gc_debug") === "1") {
     scrollCtrl.setDebug(true);
     debugHud.setVisible(true);
-    console.info("[gesture-control] debug mode ON");
+    console.info("[gesture-control] debug mode ON (toggle with D key)");
+  } else if (location.search.includes("debug")) {
+    scrollCtrl.setDebug(true);
+    console.info("[gesture-control] scroll debug logs ON, press D for visual debug HUD");
   }
 
   signatureDetector.setListener((event: SignatureEvent) => {
     if (event === "double-pinch") {
-      if (selectionTray.count() === 0) {
+      if (actionPanel.count() === 0) {
         showToast("Pinch elements first, then double-pinch to send", "#f59e0b");
         return;
       }
-      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+      actionPanel.triggerAsk();
       showToast("✨ Double-pinch → sent to Claude", "#10b981");
     } else if (event === "double-fist") {
-      selectionTray.clear();
+      actionPanel.clear();
       inspector.select(null);
       canvas.setHighlight(null);
       showToast("Double-fist → cleared", "#ef4444");
@@ -321,14 +370,14 @@ async function main() {
 
   twoHandDetector.setListener((event: TwoHandEvent) => {
     if (event === "two-hand-clap") {
-      if (selectionTray.count() === 0) {
+      if (actionPanel.count() === 0) {
         showToast("Select elements first (pinch)", "#f59e0b");
         return;
       }
-      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+      actionPanel.triggerAsk();
       showToast("👏 Clap → sent to Claude", "#10b981");
     } else if (event === "two-hand-spread") {
-      selectionTray.clear();
+      actionPanel.clear();
       inspector.select(null);
       canvas.setHighlight(null);
       showToast("✋✋ Spread → cleared", "#f59e0b");
@@ -372,10 +421,10 @@ async function main() {
     }
     else if (e.key === "a" || e.key === "A") curateSelection();
     else if (e.key === "k" || e.key === "K") {
-      if (selectionTray.count() === 0) { showToast("Nothing selected", "#f59e0b"); return; }
-      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+      if (actionPanel.count() === 0) { showToast("Nothing selected", "#f59e0b"); return; }
+      actionPanel.triggerAsk();
     }
-    else if (e.key === "Escape") { selectionTray.clear(); inspector.select(null); canvas.setHighlight(null); }
+    else if (e.key === "Escape") { actionPanel.clear(); inspector.select(null); canvas.setHighlight(null); }
     else if (e.key === "ArrowUp") { e.preventDefault(); navigateDom("parent"); }
     else if (e.key === "ArrowDown") { e.preventDefault(); navigateDom("firstChild"); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); navigateDom("prevSibling"); }

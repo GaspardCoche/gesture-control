@@ -1,4 +1,6 @@
 import { getApiKey, setApiKey, clearApiKey, getModel, setModel, ANTHROPIC_MODELS, testApiKey } from "../ai/anthropic-client";
+import { getGroqKey, setGroqKey, clearGroqKey, getGroqModel, setGroqModel, GROQ_MODELS, testGroqKey } from "../ai/groq-client";
+import { getProvider, setProvider, type ProviderId } from "../ai/provider-router";
 import { PRICING, estimatePerCallCost, getSessionUsage, resetUsage, formatCost } from "../ai/cost-tracker";
 import { icon } from "./icons";
 
@@ -44,8 +46,17 @@ export class SettingsPanel {
         <button id="gset-close" style="background:none; border:none; color:#64748b; cursor:pointer; font-size:20px; line-height:1; padding:0 4px;">&times;</button>
       </div>
 
-      <div style="padding: 22px 24px; display:flex; flex-direction:column; gap:18px;">
+      <div style="padding: 22px 24px; display:flex; flex-direction:column; gap:18px; max-height: 80vh; overflow-y: auto;">
 
+        <div>
+          <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">AI Provider</label>
+          <div style="display:flex; gap:5px;">
+            <button id="gset-provider-anthropic" type="button" data-provider="anthropic" style="flex:1; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:#cbd5e1;">Anthropic (paid)</button>
+            <button id="gset-provider-groq" type="button" data-provider="groq" style="flex:1; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:#cbd5e1;">Groq (free 30/min)</button>
+          </div>
+        </div>
+
+        <div id="gset-anthropic-block">
         <div>
           <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Anthropic API key</label>
           <div style="display:flex; gap:8px;">
@@ -66,7 +77,7 @@ export class SettingsPanel {
         </div>
 
         <div>
-          <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Model</label>
+          <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Anthropic model</label>
           <select id="gset-model" style="
             width:100%; padding: 10px 12px; border-radius: 8px;
             background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -74,6 +85,31 @@ export class SettingsPanel {
           ">
             ${ANTHROPIC_MODELS.map((m) => `<option value="${m.id}">${m.label}</option>`).join("")}
           </select>
+        </div>
+        </div>
+
+        <div id="gset-groq-block" style="display:none;">
+          <div>
+            <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Groq API key (free)</label>
+            <input id="gset-groq-key" type="password" placeholder="gsk_..." autocomplete="off" style="
+              width:100%; padding: 10px 12px; border-radius: 8px;
+              background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              color: #f1f5f9; font-size: 13px; font-family: ui-monospace, monospace;
+            "/>
+            <div style="font-size:11px; color:#64748b; margin-top:6px; line-height:1.5;">
+              Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:#a78bfa; text-decoration:none;">console.groq.com/keys</a>. Free tier: 30 req/min, ~14k req/day. Llama 3.3 70B is competitive with Sonnet for UI tasks.
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <label style="font-size:11px; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">Groq model</label>
+            <select id="gset-groq-model" style="
+              width:100%; padding: 10px 12px; border-radius: 8px;
+              background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+              color: #f1f5f9; font-size: 13px;
+            ">
+              ${GROQ_MODELS.map((m) => `<option value="${m.id}">${m.label}</option>`).join("")}
+            </select>
+          </div>
         </div>
 
         <div id="gset-status" style="font-size:12px; padding: 10px 12px; border-radius: 8px; display:none;"></div>
@@ -136,29 +172,47 @@ export class SettingsPanel {
     });
 
     ($("#gset-save") as HTMLElement).addEventListener("click", () => {
-      const v = keyInput.value.trim();
-      if (v) setApiKey(v);
-      setModel(modelSel.value);
-      this.flash(status, v ? "Saved" : "Model saved (key unchanged)", "#10b981");
+      const provider = getProvider();
+      if (provider === "anthropic") {
+        const v = keyInput.value.trim();
+        if (v) setApiKey(v);
+        setModel(modelSel.value);
+      } else if (provider === "groq") {
+        const groqInput = $("#gset-groq-key") as HTMLInputElement;
+        const groqModelSel = $("#gset-groq-model") as HTMLSelectElement;
+        if (groqInput.value.trim()) setGroqKey(groqInput.value.trim());
+        setGroqModel(groqModelSel.value);
+      }
+      this.flash(status, "Saved", "#10b981");
       this.onChangeCb?.();
       this.load();
     });
 
+    const switchProvider = (p: ProviderId) => {
+      setProvider(p);
+      this.refreshProviderUI();
+      this.refreshCost();
+      this.onChangeCb?.();
+    };
+    ($("#gset-provider-anthropic") as HTMLElement).addEventListener("click", () => switchProvider("anthropic"));
+    ($("#gset-provider-groq") as HTMLElement).addEventListener("click", () => switchProvider("groq"));
+
     ($("#gset-clear") as HTMLElement).addEventListener("click", () => {
-      clearApiKey();
-      keyInput.value = "";
+      const p = getProvider();
+      if (p === "anthropic") { clearApiKey(); keyInput.value = ""; }
+      else if (p === "groq") { clearGroqKey(); ($("#gset-groq-key") as HTMLInputElement).value = ""; }
       this.flash(status, "Key cleared", "#f59e0b");
       this.onChangeCb?.();
     });
 
     ($("#gset-test") as HTMLElement).addEventListener("click", async () => {
-      const k = keyInput.value.trim();
-      if (!k) {
-        this.flash(status, "Paste a key first", "#ef4444");
-        return;
-      }
+      const p = getProvider();
+      let k = "";
+      if (p === "anthropic") k = keyInput.value.trim() || getApiKey();
+      else if (p === "groq") k = ($("#gset-groq-key") as HTMLInputElement).value.trim() || getGroqKey();
+      if (!k) { this.flash(status, "Paste a key first", "#ef4444"); return; }
       this.flash(status, "Testing...", "#94a3b8");
-      const r = await testApiKey(k);
+      const r = p === "groq" ? await testGroqKey(k) : await testApiKey(k);
       this.flash(status, r.ok ? `${r.msg} ✓` : `Failed: ${r.msg}`, r.ok ? "#10b981" : "#ef4444");
     });
 
@@ -188,6 +242,40 @@ export class SettingsPanel {
       keyInput.placeholder = "sk-ant-api03-...";
     }
     modelSel.value = getModel();
+
+    const groqKeyInput = this.panel.querySelector("#gset-groq-key") as HTMLInputElement;
+    const groqModelSel = this.panel.querySelector("#gset-groq-model") as HTMLSelectElement;
+    if (groqKeyInput) {
+      const existingGroq = getGroqKey();
+      if (existingGroq) {
+        const masked = existingGroq.slice(0, 6) + "•".repeat(16) + existingGroq.slice(-4);
+        groqKeyInput.value = "";
+        groqKeyInput.placeholder = masked;
+      } else {
+        groqKeyInput.value = "";
+        groqKeyInput.placeholder = "gsk_...";
+      }
+      groqModelSel.value = getGroqModel();
+    }
+    this.refreshProviderUI();
+  }
+
+  private refreshProviderUI(): void {
+    const p = getProvider();
+    const anthroBtn = this.panel.querySelector("#gset-provider-anthropic") as HTMLElement;
+    const groqBtn = this.panel.querySelector("#gset-provider-groq") as HTMLElement;
+    const anthroBlock = this.panel.querySelector("#gset-anthropic-block") as HTMLElement;
+    const groqBlock = this.panel.querySelector("#gset-groq-block") as HTMLElement;
+    if (!anthroBtn || !groqBtn) return;
+
+    const active = "background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:white;box-shadow:0 4px 12px rgba(99,102,241,0.3);";
+    const inactive = "background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#cbd5e1;";
+
+    anthroBtn.style.cssText = `flex:1; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; ${p === "anthropic" ? active : inactive}`;
+    groqBtn.style.cssText = `flex:1; padding:8px 10px; border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; font-family:inherit; ${p === "groq" ? active : inactive}`;
+
+    if (anthroBlock) anthroBlock.style.display = p === "anthropic" ? "block" : "none";
+    if (groqBlock) groqBlock.style.display = p === "groq" ? "block" : "none";
   }
 
   toggle(): void {

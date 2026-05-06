@@ -59,7 +59,12 @@ Output:
 
 Respond in the language of the user's voice feedback. Total under 200 words. No preamble.`;
 
-export async function askClaudeStream(prompt: string, cb: StreamCallbacks, signal?: AbortSignal): Promise<void> {
+export interface ClaudeAttachment {
+  base64: string;
+  mediaType: string;
+}
+
+export async function askClaudeStream(prompt: string, cb: StreamCallbacks, signal?: AbortSignal, image?: ClaudeAttachment): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) {
     cb.onError("No API key configured. Open Settings (S) and paste your Anthropic key.");
@@ -83,7 +88,13 @@ export async function askClaudeStream(prompt: string, cb: StreamCallbacks, signa
         max_tokens: 1024,
         stream: true,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{
+          role: "user",
+          content: image ? [
+            { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } },
+            { type: "text", text: prompt },
+          ] : prompt,
+        }],
       }),
     });
   } catch (err: any) {

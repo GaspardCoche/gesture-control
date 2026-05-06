@@ -1,6 +1,7 @@
 import type { CuratedElement } from "../cli/claude-task-export";
 import { buildSelector, buildTaskMarkdown, downloadTask, copyTaskToClipboard } from "../cli/claude-task-export";
-import { askClaudeStream, hasApiKey } from "../ai/anthropic-client";
+import { askLLMStream, hasActiveProvider, getProvider, providerSupportsVision } from "../ai/provider-router";
+import { captureViewport } from "../ai/screenshot";
 import type { ElementInfo } from "./dom-inspector";
 import { icon } from "./icons";
 import { findSimilar, extractData } from "./similar-finder";
@@ -47,6 +48,7 @@ export class ActionPanel {
   private currentAbort: AbortController | null = null;
   private hooks!: ActionPanelHooks;
   private onChangeCb?: (count: number) => void;
+  private withVision = false;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement("aside");
@@ -139,7 +141,8 @@ export class ActionPanel {
           <span id="ap-key-state"></span>
         </div>
         <div class="ap-actions">
-          <button class="ap-btn ap-btn-primary" id="ap-ask">${icon("sparkle", 11, { stroke: "currentColor" })} Ask Claude</button>
+          <button class="ap-btn ap-btn-primary" id="ap-ask">${icon("sparkle", 11, { stroke: "currentColor" })} Ask AI</button>
+          <button class="ap-btn" id="ap-vision" title="Include screenshot for visual context (Anthropic only)">📷</button>
           <button class="ap-btn" id="ap-export">${icon("download", 11, { stroke: "currentColor" })} .md</button>
           <button class="ap-btn" id="ap-csv" title="Export data as CSV">CSV</button>
           <button class="ap-btn" id="ap-json" title="Export data as JSON">JSON</button>
@@ -252,12 +255,14 @@ export class ActionPanel {
   refreshKeyState(): void {
     const el = this.root.querySelector("#ap-key-state") as HTMLElement;
     if (!el) return;
-    if (hasApiKey()) {
+    const p = getProvider();
+    const label = p === "groq" ? "Groq" : "Anthropic";
+    if (hasActiveProvider()) {
       el.className = "ap-key-status has";
-      el.textContent = "✓ AI ready";
+      el.textContent = `✓ ${label} ready`;
     } else {
       el.className = "ap-key-status no";
-      el.textContent = "Add API key (S)";
+      el.textContent = `Add ${label} key (S)`;
     }
   }
 
@@ -288,6 +293,18 @@ export class ActionPanel {
     });
 
     $("#ap-ask").addEventListener("click", () => this.askClaude());
+    $("#ap-vision").addEventListener("click", () => {
+      if (!providerSupportsVision()) {
+        window.dispatchEvent(new CustomEvent("gc-toast", { detail: { msg: "Vision needs Anthropic provider", color: "#f59e0b" } }));
+        return;
+      }
+      this.withVision = !this.withVision;
+      const btn = $("#ap-vision") as HTMLElement;
+      btn.style.background = this.withVision ? "rgba(34,211,238,0.18)" : "";
+      btn.style.borderColor = this.withVision ? "rgba(34,211,238,0.4)" : "";
+      btn.style.color = this.withVision ? "#67e8f9" : "";
+      window.dispatchEvent(new CustomEvent("gc-toast", { detail: { msg: this.withVision ? "📷 Vision ON for next ask" : "Vision OFF", color: "#22d3ee" } }));
+    });
     $("#ap-stop").addEventListener("click", () => this.currentAbort?.abort());
     $("#ap-refine").addEventListener("click", () => {
       intentTa.focus();
@@ -414,7 +431,7 @@ export class ActionPanel {
   }
 
   private async askClaude(): Promise<void> {
-    if (!hasApiKey()) {
+    if (!hasActiveProvider()) {
       window.dispatchEvent(new CustomEvent("gc-open-settings"));
       return;
     }
@@ -434,7 +451,14 @@ export class ActionPanel {
     this.currentAbort = new AbortController();
     this.refreshAi();
 
-    await askClaudeStream(md, {
+    let image: { base64: string; mediaType: string } | undefined;
+    if (this.withVision && providerSupportsVision()) {
+      window.dispatchEvent(new CustomEvent("gc-toast", { detail: { msg: "Capturing screenshot…", color: "#22d3ee" } }));
+      const shot = await captureViewport();
+      if (shot) image = { base64: shot.base64, mediaType: shot.mediaType };
+    }
+
+    await askLLMStream(md, {
       onDelta: (chunk) => {
         this.aiStreamText += chunk;
         this.refreshAi();
@@ -450,7 +474,7 @@ export class ActionPanel {
         this.currentAbort = null;
         this.refreshAi();
       },
-    }, this.currentAbort.signal);
+    }, this.currentAbort.signal, image);
   }
 
   private refreshAi(): void {

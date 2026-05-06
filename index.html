@@ -6,8 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Gesture Control v6.0 — Scrape any site, hands-free</title>
-  <meta name="description" content="Load any URL, curate DOM elements with hand gestures, send a Markdown task to Claude Code." />
+  <title>Gesture Control v7.0 — Curate, ask Claude, apply</title>
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <style>
@@ -38,190 +37,114 @@
       letter-spacing: -0.005em;
       height: 100vh;
     }
-    .app-shell { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+    @keyframes gfp-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .app-shell {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      grid-template-areas: "topbar topbar" "target panel";
+      height: 100vh;
+    }
 
     .topbar {
+      grid-area: topbar;
       backdrop-filter: blur(20px) saturate(140%);
       -webkit-backdrop-filter: blur(20px) saturate(140%);
       background: rgba(7,7,11,0.85);
       border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
-      display: flex; align-items: center; gap: 14px;
+      padding: 9px 14px;
+      display: flex; align-items: center; gap: 10px;
     }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; flex-shrink: 0; }
     .brand-icon {
-      width: 26px; height: 26px; border-radius: 7px;
+      width: 24px; height: 24px; border-radius: 6px;
       background: var(--grad-primary);
       display: inline-flex; align-items: center; justify-content: center;
       box-shadow: 0 4px 14px rgba(99,102,241,0.3);
     }
     .brand-icon svg { color: white; }
+    .v-tag { font-size: 9px; color: var(--muted); padding: 1px 5px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); font-family: ui-monospace, monospace; font-weight: 600; }
 
     .url-bar {
       flex: 1; display: flex; align-items: center; gap: 6px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 4px 4px 4px 14px;
+      border-radius: 8px; padding: 3px 4px 3px 12px;
       max-width: 720px;
     }
     .url-bar svg { color: var(--muted); flex-shrink: 0; }
     .url-bar input {
       flex: 1; background: transparent; border: none; outline: none;
-      color: var(--text); font-size: 13px; padding: 7px 8px;
+      color: var(--text); font-size: 12px; padding: 6px 6px;
       font-family: inherit;
     }
     .url-bar input::placeholder { color: var(--muted); }
     .url-bar button {
-      padding: 7px 14px; border-radius: 6px; border: none;
-      background: var(--grad-primary); color: white; font-size: 12px;
+      padding: 6px 12px; border-radius: 6px; border: none;
+      background: var(--grad-primary); color: white; font-size: 11px;
       font-weight: 600; cursor: pointer; font-family: inherit;
-      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
     }
     .url-bar button:hover { filter: brightness(1.1); }
-
     .topbar-link {
-      color: var(--muted); text-decoration: none; font-size: 12px;
-      padding: 6px 10px; border-radius: 6px; transition: all .12s;
+      color: var(--muted); text-decoration: none; font-size: 11px;
+      padding: 5px 9px; border-radius: 6px; transition: all .12s; cursor: pointer; background: none; border: none; font-family: inherit;
     }
     .topbar-link:hover { color: var(--text); background: var(--surface); }
 
-    .stage {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 280px;
-      overflow: hidden;
-    }
     .target-area {
+      grid-area: target;
       position: relative;
       background: var(--bg-elev);
       overflow: hidden;
     }
-    #target-frame {
-      width: 100%; height: 100%; border: none; background: white;
-      display: none;
-    }
+    #target-frame { width: 100%; height: 100%; border: none; background: white; display: none; }
     .empty-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100%; padding: 40px; text-align: center;
     }
-    .empty-state svg { color: var(--muted); margin-bottom: 16px; }
-    .empty-state h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px; }
-    .empty-state p { font-size: 13px; color: var(--muted); max-width: 440px; line-height: 1.6; }
-    .empty-state .hint { margin-top: 18px; font-size: 11px; color: var(--muted); padding: 10px 14px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
-    .empty-state kbd { background: var(--border); padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-2); }
+    .empty-state svg { color: var(--muted); margin-bottom: 14px; }
+    .empty-state h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 6px; }
+    .empty-state p { font-size: 12px; color: var(--muted); max-width: 380px; line-height: 1.6; margin-bottom: 14px; }
+    .empty-state .hint { margin-top: 8px; font-size: 11px; color: var(--muted); padding: 9px 13px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
 
     .frame-error {
       position: absolute; inset: 0;
       display: none; flex-direction: column; align-items: center; justify-content: center;
-      padding: 40px; text-align: center;
-      background: var(--bg-elev);
+      padding: 30px; text-align: center; background: var(--bg-elev);
     }
-    .frame-error h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--warning); }
-    .frame-error p { font-size: 12px; color: var(--text-2); max-width: 480px; line-height: 1.6; margin-bottom: 14px; }
-    .frame-error .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-    .frame-error a { padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+    .frame-error h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--warning); }
+    .frame-error p { font-size: 11px; color: var(--text-2); max-width: 400px; line-height: 1.6; margin-bottom: 12px; }
+    .frame-error .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .frame-error a { padding: 6px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
     .frame-error a.primary { background: var(--grad-primary); color: white; }
     .frame-error a.secondary { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
 
-    .sidebar {
-      background: linear-gradient(180deg, var(--surface) 0%, var(--bg-elev) 100%);
-      border-left: 1px solid var(--border);
-      padding: 12px;
-      display: flex; flex-direction: column; gap: 10px;
-      overflow-y: auto;
+    /* video thumbnail bottom-right (replaces fat sidebar) */
+    .video-thumb {
+      position: fixed; bottom: 14px; right: 374px;
+      width: 140px; border-radius: 8px;
+      overflow: hidden; border: 1px solid var(--border-strong);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+      background: var(--surface); transition: all .2s; cursor: pointer;
+      z-index: 50;
     }
-    #gesture-video-feed {
-      width: 100%; border-radius: 10px;
-      transform: scaleX(-1); opacity: 0.92;
-      border: 1px solid var(--border-strong);
-    }
-    #status {
-      font-size: 11px; color: var(--muted);
-      padding: 6px 10px; background: var(--surface-2);
-      border-radius: 6px; text-align: center; border: 1px solid var(--border);
-    }
-    .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
-    .mode-btn {
-      padding: 8px 4px; border: 1px solid var(--border);
-      border-radius: 6px; background: var(--surface-2);
-      color: var(--muted); font-size: 10px; font-weight: 600;
-      text-align: center; cursor: pointer;
-      font-family: inherit;
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      transition: all .12s;
-    }
-    .mode-btn:hover { border-color: var(--primary); color: var(--text); }
-    .sidebar-section {
-      font-size: 10px; color: var(--muted); line-height: 1.7;
-      padding: 8px 10px; background: var(--surface-2);
-      border-radius: 7px; border: 1px solid var(--border);
-    }
-    .sidebar-title {
-      font-size: 9.5px; font-weight: 700; color: var(--text);
-      text-transform: uppercase; letter-spacing: 0.05em;
-      margin-bottom: 4px;
-    }
-    .sidebar-section kbd {
-      background: var(--border); padding: 0 5px; border-radius: 3px;
+    .video-thumb.collapsed { width: 36px; height: 36px; border-radius: 50%; }
+    .video-thumb.collapsed video { opacity: 0.4; }
+    .video-thumb video { width: 100%; display: block; transform: scaleX(-1); }
+    .video-thumb-status {
+      position: absolute; bottom: 4px; left: 4px;
+      padding: 1px 6px; border-radius: 4px;
+      background: rgba(0,0,0,0.7); font-size: 9px;
       font-family: ui-monospace, monospace; color: var(--text-2);
-      font-size: 9.5px;
     }
-
-    /* FAB quick actions */
-    .fab-stack {
-      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 8px; z-index: 100000;
-    }
-    .fab {
-      padding: 10px 16px; border-radius: 999px; border: 1px solid var(--border-strong);
-      background: rgba(11,11,16,0.96); backdrop-filter: blur(16px);
-      color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
-      font-family: inherit;
-      display: inline-flex; align-items: center; gap: 6px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      transition: all .15s;
-    }
-    .fab:hover { transform: translateY(-2px); border-color: var(--primary); }
-    .fab.primary {
-      background: var(--grad-primary); border: none; color: white;
-      box-shadow: 0 8px 24px rgba(99,102,241,0.4);
-    }
-    .fab.primary:hover { filter: brightness(1.1); }
-
-    /* Onboarding modal */
-    .onboard-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 100100; padding: 20px;
-    }
-    .onboard-modal {
-      max-width: 560px; width: 100%; padding: 28px;
-      background: var(--surface); border: 1px solid var(--border-strong);
-      border-radius: 16px;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-    }
-    .onboard-modal h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px;
-      background: var(--grad-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .onboard-modal p { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; }
-    .onboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-    .onboard-card {
-      padding: 14px; border-radius: 10px;
-      background: var(--surface-2); border: 1px solid var(--border);
-    }
-    .onboard-card-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.25); display: inline-flex; align-items: center; justify-content: center; color: var(--primary); margin-bottom: 8px; }
-    .onboard-card h4 { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
-    .onboard-card p { font-size: 11px; color: var(--muted); margin: 0; line-height: 1.5; }
-    .onboard-actions { display: flex; gap: 8px; justify-content: flex-end; }
-    .onboard-actions button { padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
-    .onboard-actions .primary { background: var(--grad-primary); color: white; border: none; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
-    .onboard-actions .secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-strong); }
 
     @media (max-width: 900px) {
-      .stage { grid-template-columns: 1fr; }
-      .sidebar { display: none; }
+      .app-shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "target" "panel"; }
+      #gesture-action-panel { max-height: 50vh; }
+      .video-thumb { right: 14px; }
     }
   </style>
-  <script type="module" crossorigin src="/gesture-control/assets/index-D2DZaFMx.js"></script>
+  <script type="module" crossorigin src="/gesture-control/assets/index-Bqrzqu4X.js"></script>
   <link rel="modulepreload" crossorigin href="/gesture-control/assets/vendor-mediapipe-BYsGvJLp.js">
 </head>
 <body>
@@ -229,163 +152,96 @@
     <nav class="topbar">
       <div class="brand">
         <span class="brand-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
             <path d="M13 11V4a2 2 0 1 1 4 0v9"/>
             <path d="M17 11V6a2 2 0 1 1 4 0v9a7 7 0 0 1-7 7H10a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0v2"/>
           </svg>
         </span>
         Gesture Control
+        <span class="v-tag">v7.0</span>
       </div>
 
       <form class="url-bar" id="url-form" autocomplete="off">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        </svg>
-        <input id="url-input" type="text" placeholder="Paste any URL to scrape — e.g. https://news.ycombinator.com" />
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        <input id="url-input" type="text" placeholder="Paste URL — e.g. https://news.ycombinator.com" />
         <button type="submit">Load</button>
       </form>
 
-      <a class="topbar-link" href="#" id="help-link">Help</a>
-      <a class="topbar-link" href="https://github.com/GaspardCoche/geste-control" target="_blank" rel="noopener">GitHub</a>
+      <button class="topbar-link" id="settings-link">Settings</button>
+      <button class="topbar-link" id="help-link">Help</button>
+      <a class="topbar-link" href="https://github.com/GaspardCoche/gesture-control" target="_blank" rel="noopener">GitHub</a>
     </nav>
 
-    <div class="stage">
-      <div class="target-area">
-        <iframe id="target-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    <div class="target-area">
+      <iframe id="target-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
 
-        <div class="empty-state" id="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          <h2>Paste a URL to scrape</h2>
-          <p>Load any website above. Pinch on the elements you want to capture, then send a Markdown task to Claude Code with all selectors + computed styles.</p>
-          <div class="hint">
-            Site refuses embedding? Drag the bookmarklet to your bookmarks bar:
-            <a id="bookmarklet-link" href="javascript:void(0);" style="display:inline-block;margin-top:6px;padding:5px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);text-decoration:none;font-weight:600;font-size:11px;cursor:grab;">↪ Gesture Control</a>
-          </div>
-        </div>
-
-        <div class="frame-error" id="frame-error">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:14px;">
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          <h3>This site refuses to be embedded</h3>
-          <p>Most modern sites set <code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;">X-Frame-Options: DENY</code>. Use the bookmarklet — it injects gesture-control directly into the live site.</p>
-          <div class="actions">
-            <a href="#" id="copy-bookmarklet" class="primary">Copy bookmarklet code</a>
-            <a href="#" id="open-direct" class="secondary" target="_blank" rel="noopener">Open URL in new tab</a>
-            <a href="#" id="dismiss-error" class="secondary">Try another URL</a>
-          </div>
+      <div class="empty-state" id="empty-state">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        <h2>Paste a URL to start</h2>
+        <p>Pinch elements with your hand. Pick a template or write your intent. Ask Claude. Apply the suggested CSS — all in one panel.</p>
+        <div class="hint">
+          Site refuses embedding? Drag this to your bookmarks bar:
+          <a id="bookmarklet-link" href="javascript:void(0);" style="display:inline-block;margin-top:6px;padding:5px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);text-decoration:none;font-weight:600;font-size:11px;cursor:grab;">↪ Gesture Control</a>
         </div>
       </div>
 
-      <aside class="sidebar">
-        <video id="gesture-video-feed" autoplay playsinline muted></video>
-        <div id="status">Loading…</div>
-        <div class="mode-grid">
-          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'1'}))">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-            Inspect
-          </button>
-          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'2'}))">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-            Draw
-          </button>
-          <button class="mode-btn" type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'3'}))">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14L7 0 0 7l14 14 7-7z"/></svg>
-            Measure
-          </button>
+      <div class="frame-error" id="frame-error">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <h3>Site refuses embedding</h3>
+        <p><code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">X-Frame-Options: DENY</code> — use the bookmarklet on the live site.</p>
+        <div class="actions">
+          <a id="copy-bookmarklet" class="primary">Copy bookmarklet</a>
+          <a id="open-direct" class="secondary" target="_blank" rel="noopener">Open in new tab</a>
+          <a id="dismiss-error" class="secondary">Try another URL</a>
         </div>
-        <div class="sidebar-section">
-          <div class="sidebar-title">Two-hand gestures</div>
-          <strong style="color:#a5b4fc;">Clap</strong> · send to Claude<br/>
-          <strong style="color:#fcd34d;">Spread</strong> · clear all<br/>
-          <strong style="color:#67e8f9;">Both move ↕</strong> · scroll
-        </div>
-        <div class="sidebar-section">
-          <div class="sidebar-title">Single hand</div>
-          <strong style="color:#67e8f9;">Pinch</strong> · add to selection<br/>
-          <strong style="color:#a78bfa;">🤟 ILY</strong> · voice toggle<br/>
-          <strong style="color:#fca5a5;">Fist (hold)</strong> · clear
-        </div>
-        <div class="sidebar-section">
-          <div class="sidebar-title">Keyboard</div>
-          <kbd>K</kbd> send · <kbd>V</kbd> voice<br/>
-          <kbd>↑↓←→</kbd> zoom DOM<br/>
-          <kbd>S</kbd> AI key · <kbd>D</kbd> debug · <kbd>H</kbd> help
-        </div>
-      </aside>
+      </div>
     </div>
   </div>
 
-  <div class="fab-stack">
-    <button class="fab primary" id="fab-send" title="Send curated selection to Claude Code (K)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Send to Claude <span id="fab-count" style="opacity:.7;font-weight:600;">(0)</span>
-    </button>
-    <button class="fab" id="fab-voice" title="Toggle voice (V)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
-      Voice
-    </button>
-    <button class="fab" id="fab-help" title="Help (H)">
-      ?
-    </button>
-    <button class="fab" id="fab-clear" title="Clear (Esc)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+  <div class="video-thumb" id="video-thumb">
+    <video id="gesture-video-feed" autoplay playsinline muted></video>
+    <div class="video-thumb-status" id="status">…</div>
   </div>
 
-  <div class="onboard-overlay" id="onboard" style="display:none;">
-    <div class="onboard-modal">
-      <h2>Welcome to Gesture Control</h2>
-      <p>Hands-free DOM curation for Claude Code. Pick elements with gestures, dictate intent, and send a structured Markdown task in one move.</p>
-      <div class="onboard-grid">
-        <div class="onboard-card">
-          <div class="onboard-card-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-          </div>
-          <h4>1. Paste a URL</h4>
-          <p>Use the address bar above. The site loads in a sandboxed frame. If embedding is blocked, use the bookmarklet.</p>
+  <!-- Help / onboarding modal -->
+  <div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:100100;padding:20px;">
+    <div style="max-width:540px;width:100%;padding:26px;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.6);font-family:'Inter',system-ui,sans-serif;">
+      <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.022em;margin-bottom:10px;background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">How it works</h2>
+      <div style="font-size:12px;color:var(--text-2);line-height:1.7;">
+        <strong style="color:var(--text);">1. Load a site</strong> — paste a URL or use the bookmarklet on the live site.<br/>
+        <strong style="color:var(--text);">2. Pinch elements</strong> — each pinch adds an element to your selection (right panel, numbered).<br/>
+        <strong style="color:var(--text);">3. Pick a template or write intent</strong> — Accessible / Modernize / Mobile / Cleanup, or your own description.<br/>
+        <strong style="color:var(--text);">4. Ask Claude</strong> — streams the answer with diagnosis + CSS snippet + rationale.<br/>
+        <strong style="color:var(--text);">5. Apply CSS</strong> (when same-origin) — Claude's CSS is applied directly to your selected elements with undo.<br/>
+        <strong style="color:var(--text);">6. Export</strong> — <code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:11px;">.md</code> file or clipboard for <code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:11px;">claude &lt; gesture-task.md</code>.
+      </div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Gestures</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--text-2);line-height:1.7;">
+          <div><strong style="color:#67e8f9;">Pinch</strong> — add element</div>
+          <div><strong style="color:#a5b4fc;">👏 Two-hand clap</strong> — Send</div>
+          <div><strong style="color:#fcd34d;">✋✋ Spread</strong> — clear all</div>
+          <div><strong style="color:#67e8f9;">Both ↕ together</strong> — scroll</div>
+          <div><strong style="color:#a78bfa;">🤟 ILY (hold)</strong> — voice</div>
+          <div><strong style="color:#fca5a5;">Fist (hold)</strong> — clear</div>
         </div>
-        <div class="onboard-card">
-          <div class="onboard-card-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8c0-3 2-5 5-5s5 2 5 5"/><path d="M5 8v8a4 4 0 0 0 4 4h6"/><path d="M11 12V6"/></svg>
-          </div>
-          <h4>2. Pinch elements</h4>
-          <p>Each pinch adds an element to your selection (numbered tray on the left).</p>
-        </div>
-        <div class="onboard-card">
-          <div class="onboard-card-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11V6a2 2 0 1 1 4 0v5"/><path d="M13 11V4a2 2 0 1 1 4 0v9"/><path d="M17 11V6a2 2 0 1 1 4 0v9a7 7 0 0 1-7 7H10a7 7 0 0 1-7-7v-3a2 2 0 1 1 4 0v2"/></svg>
-          </div>
-          <h4>3. Clap with both hands</h4>
-          <p>Two-hand clap = send your task as Markdown. Or press <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">K</kbd>.</p>
-        </div>
-        <div class="onboard-card">
-          <div class="onboard-card-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/></svg>
-          </div>
-          <h4>4. Open with Claude</h4>
-          <p><code style="background:var(--surface-2);padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:11px;">claude &lt; gesture-task.md</code> in your terminal — done.</p>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:14px 0 8px;">Keyboard</div>
+        <div style="font-size:11px;color:var(--text-2);line-height:1.9;">
+          <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">K</kbd> Send · <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">V</kbd> voice · <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">↑↓←→</kbd> zoom DOM · <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">Esc</kbd> clear · <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">D</kbd> debug · <kbd style="background:var(--border);padding:0 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:10px;">S</kbd> AI key
         </div>
       </div>
-      <div class="onboard-actions">
-        <button class="secondary" id="onboard-skip">Skip</button>
-        <button class="primary" id="onboard-start">Get started</button>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+        <button id="help-close" style="padding:8px 16px;border-radius:7px;background:var(--grad-primary);color:white;border:none;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;">Got it</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Bookmarklet
     const BOOKMARKLET_URL = "https://gaspardcoche.github.io/gesture-control/bookmarklet.js";
     const code = `javascript:void((function(){if(document.getElementById('gesture-ctl-injected'))return;var s=document.createElement('script');s.id='gesture-ctl-injected';s.src='${BOOKMARKLET_URL}?t='+Date.now();document.head.appendChild(s);})())`;
-    const blink = document.getElementById('bookmarklet-link');
-    if (blink) blink.href = code;
+    document.getElementById('bookmarklet-link').href = code;
 
-    // URL load
     const form = document.getElementById('url-form');
     const input = document.getElementById('url-input');
     const frame = document.getElementById('target-frame');
@@ -425,38 +281,21 @@
         }
       }, 4000);
     }
-
     frame.addEventListener('load', () => { frameLoaded = true; });
     form.addEventListener('submit', (e) => { e.preventDefault(); loadUrl(input.value); });
 
-    // FAB wiring
-    document.getElementById('fab-send').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })));
-    document.getElementById('fab-voice').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'v' })));
-    document.getElementById('fab-help').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' })));
-    document.getElementById('fab-clear').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
-    document.getElementById('help-link').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('onboard').style.display = 'flex';
-    });
+    document.getElementById('settings-link').addEventListener('click', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 's' })));
+    document.getElementById('help-link').addEventListener('click', () => document.getElementById('help-modal').style.display = 'flex');
+    document.getElementById('help-close').addEventListener('click', () => document.getElementById('help-modal').style.display = 'none');
+    document.getElementById('help-modal').addEventListener('click', (e) => { if (e.target.id === 'help-modal') e.currentTarget.style.display = 'none'; });
 
-    // Onboarding
-    const onboard = document.getElementById('onboard');
-    if (!localStorage.getItem('gc_onboarded')) {
-      setTimeout(() => onboard.style.display = 'flex', 800);
+    if (!localStorage.getItem('gc_onboarded_v7')) {
+      setTimeout(() => { document.getElementById('help-modal').style.display = 'flex'; localStorage.setItem('gc_onboarded_v7', '1'); }, 1000);
     }
-    document.getElementById('onboard-start').addEventListener('click', () => {
-      onboard.style.display = 'none';
-      localStorage.setItem('gc_onboarded', '1');
-    });
-    document.getElementById('onboard-skip').addEventListener('click', () => {
-      onboard.style.display = 'none';
-      localStorage.setItem('gc_onboarded', '1');
-    });
 
-    // Update count badge from main app via custom event
-    window.addEventListener('gc-selection-count', (e) => {
-      const count = e.detail || 0;
-      document.getElementById('fab-count').textContent = `(${count})`;
+    // Video thumb collapse on click
+    document.getElementById('video-thumb').addEventListener('click', (e) => {
+      e.currentTarget.classList.toggle('collapsed');
     });
   </script>
 </body>

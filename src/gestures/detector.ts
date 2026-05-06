@@ -1,7 +1,10 @@
 import { FilesetResolver, HandLandmarker, type NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { classify, type GestureType, type ClassificationResult } from "./classifier";
+import * as MPRecognizer from "./gesture-recognizer";
+import type { MPCategory } from "./gesture-recognizer";
 
 export type { GestureType } from "./classifier";
+export type { MPCategory } from "./gesture-recognizer";
 
 export interface GestureState {
   type: GestureType;
@@ -13,6 +16,7 @@ export interface GestureState {
   pinchRatio: number;
   handScale: number;
   classification: ClassificationResult;
+  mp: { category: MPCategory; score: number } | null;
 }
 
 export interface DetectionResult {
@@ -37,6 +41,10 @@ export async function initDetector(): Promise<void> {
     minHandDetectionConfidence: 0.6,
     minTrackingConfidence: 0.6,
   });
+
+  MPRecognizer.init().catch((err) => {
+    console.warn("[gesture-recognizer] init failed (will run without ML gestures):", err);
+  });
 }
 
 export function detect(video: HTMLVideoElement, timestamp: number): DetectionResult {
@@ -51,6 +59,12 @@ export function detect(video: HTMLVideoElement, timestamp: number): DetectionRes
       const thumbTip = lm[4];
       const wrist = lm[0];
 
+      let mp: { category: MPCategory; score: number } | null = null;
+      if (MPRecognizer.isReady()) {
+        const r = MPRecognizer.recognize(video, timestamp);
+        if (r) mp = { category: r.category, score: r.score };
+      }
+
       hand = {
         type: classification.type,
         confidence: results.handedness[0]?.[0]?.score ?? 0,
@@ -61,6 +75,7 @@ export function detect(video: HTMLVideoElement, timestamp: number): DetectionRes
         pinchRatio: classification.pinchRatio,
         handScale: classification.handScale,
         classification,
+        mp,
       };
     }
   }

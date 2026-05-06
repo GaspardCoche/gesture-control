@@ -13,6 +13,8 @@ import { SettingsPanel } from "./overlay/settings-panel";
 import { matchCommand } from "./voice/command-grammar";
 import { executeCommand, undoLast, undoStackSize } from "./voice/command-executor";
 import { SelectionTray } from "./overlay/selection-tray";
+import { SignatureDetector, type SignatureEvent } from "./gestures/signature";
+import { DebugHUD } from "./overlay/debug-hud";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -67,8 +69,14 @@ async function main() {
   const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
   const settingsPanel = new SettingsPanel(overlayRoot);
   const selectionTray = new SelectionTray(overlayRoot);
+  const signatureDetector = new SignatureDetector();
+  const debugHud = new DebugHUD(overlayRoot);
   feedbackPanel.setOnOpenSettings(() => settingsPanel.show());
   settingsPanel.onChange(() => feedbackPanel.refreshKeyBadge());
+
+  let lastIndexY = 0;
+  let lastWristY = 0;
+  let frameFps = 0;
 
   let voiceRecorder: VoiceBackend | null = null;
 
@@ -195,9 +203,12 @@ async function main() {
     const { type } = state;
     canvas.updateCursor(state.indexTip.x, state.indexTip.y, modes.current === "draw" ? "draw" : "default");
 
-    const scrollAmount = scrollCtrl.update(type, state.wrist.y);
-    if (scrollAmount !== 0) canvas.setScrollIndicator(scrollAmount);
-    else canvas.setScrollIndicator(0);
+    lastIndexY = state.indexTip.y;
+    lastWristY = state.wrist.y;
+    const scrollAmount = scrollCtrl.update(type, state.indexTip.y);
+    canvas.setScrollIndicator(scrollAmount);
+
+    signatureDetector.feed(type, state.mp?.category ?? null);
 
     if (type !== lastGesture) {
       if (lastGesture === "PINCH" && modes.current === "draw") canvas.endStroke();
@@ -272,8 +283,36 @@ async function main() {
 
   if (location.search.includes("debug") || localStorage.getItem("gc_debug") === "1") {
     scrollCtrl.setDebug(true);
+    debugHud.setVisible(true);
     console.info("[gesture-control] debug mode ON");
   }
+
+  signatureDetector.setListener((event: SignatureEvent) => {
+    if (event === "double-pinch") {
+      if (selectionTray.count() === 0) {
+        showToast("Pinch elements first, then double-pinch to send", "#f59e0b");
+        return;
+      }
+      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+      showToast("✨ Double-pinch → sent to Claude", "#10b981");
+    } else if (event === "double-fist") {
+      selectionTray.clear();
+      inspector.select(null);
+      canvas.setHighlight(null);
+      showToast("Double-fist → cleared", "#ef4444");
+    } else if (event === "ilove-you") {
+      if (voiceRecorder?.recording) {
+        stopVoiceRecording();
+        showToast("🤟 ILY → voice stopped", "#a78bfa");
+      } else {
+        startVoiceRecording();
+        showToast("🤟 ILY → voice recording", "#a78bfa");
+      }
+    } else if (event === "thumb-up-mp") {
+      debugHud.toggle();
+      showToast("Debug HUD toggled", "#22d3ee");
+    }
+  });
   (window as any).__gc = {
     enableDebug: () => { localStorage.setItem("gc_debug", "1"); scrollCtrl.setDebug(true); console.info("debug ON"); },
     disableDebug: () => { localStorage.removeItem("gc_debug"); scrollCtrl.setDebug(false); console.info("debug OFF"); },
@@ -316,6 +355,7 @@ async function main() {
     else if (e.key === "ArrowDown") { e.preventDefault(); navigateDom("firstChild"); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); navigateDom("prevSibling"); }
     else if (e.key === "ArrowRight") { e.preventDefault(); navigateDom("nextSibling"); }
+    else if (e.key === "d" || e.key === "D") { debugHud.toggle(); }
   });
 
   function loop() {
@@ -328,8 +368,23 @@ async function main() {
     canvas.render(lastGesture, modes.current, false);
     hud.updateFPS();
     hud.updateStability(getStabilityInfo());
+    frameFps++;
+    debugHud.update({
+      custom: lastGesture,
+      mp: result.hand?.mp?.category ?? null,
+      mpScore: result.hand?.mp?.score ?? 0,
+      indexY: lastIndexY,
+      wristY: lastWristY,
+      scroll: scrollCtrl.getDebugInfo(),
+      fps: Math.round(frameFps * 1000 / Math.max(1, performance.now() - lastFpsT) || 0),
+    });
+    if (performance.now() - lastFpsT > 1000) {
+      lastFpsT = performance.now();
+      frameFps = 0;
+    }
     rafId = requestAnimationFrame(loop);
   }
+  let lastFpsT = performance.now();
 
   rafId = requestAnimationFrame(loop);
 }

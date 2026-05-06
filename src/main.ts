@@ -73,6 +73,13 @@ async function main() {
   actionPanel.setHooks({
     onApplyCss: (css, selectors) => applyCssToSelections(css, selectors),
     onUndo: () => false,
+    buildElementInfo: (el) => inspector.getInfo(el),
+    isAppUi: (el) => {
+      const ids = ["gesture-canvas","gesture-hud","gesture-action-panel","gesture-debug-hud","gesture-toast","gesture-feedback-panel","gesture-settings-panel","gesture-whiteboard","video-thumb","help-modal","gesture-video-feed","url-form","topbar","frame-error","empty-state"];
+      if (ids.includes(el.id)) return true;
+      if (el.dataset && el.dataset.gcUi !== undefined) return true;
+      return el.closest("[data-gc-ui]") !== null;
+    },
   });
   actionPanel.setOnChange(() => {
     /* count is internal */

@@ -1,4 +1,5 @@
 import type { ElementInfo } from "../overlay/dom-inspector";
+import { extractData } from "../overlay/similar-finder";
 
 export interface CuratedElement {
   id: string;
@@ -67,6 +68,13 @@ export function buildTaskMarkdown(opts: TaskExportOptions): string {
     }
     if (el.note) {
       lines.push(`- **Note:** ${el.note}`);
+    }
+    if (info.element) {
+      const data = extractData(info.element);
+      if (data.href) lines.push(`- **Link:** ${data.href}`);
+      if (data.src) lines.push(`- **Image src:** ${data.src}`);
+      if (data.alt) lines.push(`- **Alt text:** ${data.alt}`);
+      if (data.value) lines.push(`- **Value:** ${JSON.stringify(data.value.slice(0, 100))}`);
     }
     lines.push("");
   });

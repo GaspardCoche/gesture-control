@@ -15,8 +15,16 @@ const IGNORE_IDS = new Set([
   "gesture-canvas", "gesture-hud", "gesture-inspector-panel",
   "gesture-console-panel", "gesture-video-feed", "gesture-overlay-root",
   "gesture-whiteboard", "gesture-feedback-panel", "gesture-settings-panel",
-  "gesture-toast", "gesture-selection-tray",
+  "gesture-toast", "gesture-selection-tray", "gesture-action-panel",
+  "gesture-debug-hud", "video-thumb", "help-modal", "help-link",
+  "settings-link", "url-form", "url-input", "frame-error", "empty-state",
 ]);
+
+function isAppUi(el: HTMLElement): boolean {
+  if (IGNORE_IDS.has(el.id)) return true;
+  if (el.dataset && el.dataset.gcUi !== undefined) return true;
+  return el.closest("[data-gc-ui]") !== null;
+}
 
 export type DomNavDirection = "parent" | "firstChild" | "prevSibling" | "nextSibling";
 
@@ -74,7 +82,7 @@ export class DOMInspector {
     this._lastHitTest = now;
     const els = document.elementsFromPoint(x, y);
     for (const el of els) {
-      if (el instanceof HTMLElement && !this.isOverlay(el)) {
+      if (el instanceof HTMLElement && !this.isOverlay(el) && !isAppUi(el)) {
         this._lastHitEl = el;
         return el;
       }

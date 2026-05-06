@@ -3,6 +3,7 @@ import { buildSelector, buildTaskMarkdown, downloadTask, copyTaskToClipboard } f
 import { askClaudeStream, hasApiKey } from "../ai/anthropic-client";
 import type { ElementInfo } from "./dom-inspector";
 import { icon } from "./icons";
+import { findSimilar, extractData } from "./similar-finder";
 import DOMPurify from "dompurify";
 
 const DOMPURIFY_CFG: any = {
@@ -21,6 +22,8 @@ const TEMPLATES: Array<{ id: string; label: string; icon: string; intent: string
 export interface ActionPanelHooks {
   onApplyCss: (css: string, scopedSelectors: string[]) => { applied: number; failed: number };
   onUndo: () => boolean;
+  buildElementInfo: (el: HTMLElement) => ElementInfo;
+  isAppUi: (el: HTMLElement) => boolean;
 }
 
 export class ActionPanel {
@@ -36,6 +39,7 @@ export class ActionPanel {
   constructor(container: HTMLElement) {
     this.root = document.createElement("aside");
     this.root.id = "gesture-action-panel";
+    this.root.setAttribute("data-gc-ui", "true");
     this.root.style.cssText = `
       grid-area: panel;
       background: var(--bg-elev, #0d0d14);
@@ -57,6 +61,12 @@ export class ActionPanel {
         #gesture-action-panel .ap-sel { font-family: ui-monospace, monospace; font-size: 10.5px; color: #a5b4fc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #gesture-action-panel .ap-meta { font-size: 9.5px; color: #64748b; margin-top: 2px; }
         #gesture-action-panel .ap-x { background: none; border: none; color: #64748b; cursor: pointer; padding: 0 4px; font-size: 14px; line-height: 1; }
+        #gesture-action-panel .ap-data { font-size: 9.5px; color: #94a3b8; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+        #gesture-action-panel .ap-note { width: 100%; padding: 4px 6px; margin-top: 5px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; color: #f1f5f9; font-size: 10.5px; font-family: inherit; }
+        #gesture-action-panel .ap-note:focus { outline: none; border-color: rgba(99,102,241,0.4); }
+        #gesture-action-panel .ap-row-actions { display: flex; gap: 4px; margin-top: 5px; }
+        #gesture-action-panel .ap-mini { padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #cbd5e1; font-size: 10px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        #gesture-action-panel .ap-mini:hover { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3); color: #fff; }
         #gesture-action-panel textarea { width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; color: #f1f5f9; font-size: 12px; font-family: inherit; resize: none; line-height: 1.45; }
         #gesture-action-panel textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
         #gesture-action-panel .ap-tpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
@@ -109,7 +119,9 @@ export class ActionPanel {
         <div class="ap-actions">
           <button class="ap-btn ap-btn-primary" id="ap-ask">${icon("sparkle", 11, { stroke: "currentColor" })} Ask Claude</button>
           <button class="ap-btn" id="ap-export">${icon("download", 11, { stroke: "currentColor" })} .md</button>
-          <button class="ap-btn" id="ap-copy">${icon("copy", 11, { stroke: "currentColor" })} Copy</button>
+          <button class="ap-btn" id="ap-csv" title="Export data as CSV">CSV</button>
+          <button class="ap-btn" id="ap-json" title="Export data as JSON">JSON</button>
+          <button class="ap-btn" id="ap-copy">${icon("copy", 11, { stroke: "currentColor" })} Copy MD</button>
           <button class="ap-btn ap-btn-danger" id="ap-clear">Clear</button>
         </div>
       </div>
@@ -162,6 +174,25 @@ export class ActionPanel {
     el.dataset.gestureSelectionIdx = String(this.items.length);
     this.refreshList();
     this.onChangeCb?.(this.items.length);
+  }
+
+  addSimilar(targetId: string): number {
+    const target = this.items.find((i) => i.id === targetId);
+    if (!target?.info.element || !this.hooks?.isAppUi || !this.hooks?.buildElementInfo) return 0;
+    const similars = findSimilar(target.info.element, this.hooks.isAppUi);
+    let added = 0;
+    for (const sim of similars) {
+      if (this.items.some((i) => i.info.element === sim)) continue;
+      const info = this.hooks.buildElementInfo(sim);
+      this.add(sim, info);
+      added++;
+    }
+    return added;
+  }
+
+  setNote(id: string, note: string): void {
+    const item = this.items.find((i) => i.id === id);
+    if (item) item.note = note;
   }
 
   remove(id: string): void {
@@ -243,6 +274,8 @@ export class ActionPanel {
     $("#ap-apply").addEventListener("click", () => this.applyExtractedCss());
     $("#ap-export").addEventListener("click", () => this.exportTask(true));
     $("#ap-copy").addEventListener("click", () => this.exportTask(false));
+    $("#ap-csv").addEventListener("click", () => this.exportData("csv"));
+    $("#ap-json").addEventListener("click", () => this.exportData("json"));
     $("#ap-clear").addEventListener("click", () => this.clear());
   }
 
@@ -253,27 +286,56 @@ export class ActionPanel {
 
     if (!this.items.length) {
       list.innerHTML = `<div class="ap-empty-state">Pinch elements in the page to add them here.</div>`;
-    } else {
-      list.innerHTML = this.items.map((it, i) => `
+      return;
+    }
+
+    list.innerHTML = this.items.map((it, i) => {
+      const data = it.info.element ? extractData(it.info.element as HTMLElement) : {};
+      const dataPreview = data.text ? `<div class="ap-data" title="${this.esc(data.text)}">📄 ${this.esc(data.text.slice(0, 40))}${data.text.length > 40 ? "…" : ""}</div>` : "";
+      const linkPreview = data.href ? `<div class="ap-data" style="color:#67e8f9;" title="${this.esc(data.href)}">↗ ${this.esc(data.href.slice(0, 32))}…</div>` : "";
+      const noteValue = it.note ? this.esc(it.note) : "";
+      return `
         <div class="ap-row" data-id="${it.id}">
           <span class="ap-idx">${i + 1}</span>
           <div class="ap-row-body">
-            <div class="ap-sel">${this.esc(it.selector)}</div>
+            <div class="ap-sel" title="${this.esc(it.selector)}">${this.esc(it.selector)}</div>
             <div class="ap-meta">&lt;${it.info.tag}&gt; · ${Math.round(it.info.rect.width)}×${Math.round(it.info.rect.height)}</div>
+            ${dataPreview}
+            ${linkPreview}
+            <input class="ap-note" data-note="${it.id}" type="text" placeholder="Add note (optional)" value="${noteValue}" />
+            <div class="ap-row-actions">
+              <button class="ap-mini" data-similar="${it.id}" title="Find similar elements">+ similar</button>
+              <button class="ap-mini" data-scroll="${it.id}" title="Scroll to element">⤢</button>
+            </div>
           </div>
-          <button class="ap-x" data-remove="${it.id}">×</button>
+          <button class="ap-x" data-remove="${it.id}" title="Remove">×</button>
         </div>
-      `).join("");
-      list.querySelectorAll<HTMLElement>("[data-remove]").forEach((btn) => {
-        btn.addEventListener("click", (e) => { e.stopPropagation(); this.remove(btn.dataset.remove!); });
+      `;
+    }).join("");
+
+    list.querySelectorAll<HTMLElement>("[data-remove]").forEach((btn) => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); this.remove(btn.dataset.remove!); });
+    });
+    list.querySelectorAll<HTMLElement>("[data-similar]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const added = this.addSimilar(btn.dataset.similar!);
+        window.dispatchEvent(new CustomEvent("gc-toast", {
+          detail: { msg: added > 0 ? `+ ${added} similar elements` : "No similar elements found", color: added > 0 ? "#10b981" : "#f59e0b" },
+        }));
       });
-      list.querySelectorAll<HTMLElement>("[data-id]").forEach((row) => {
-        row.addEventListener("click", () => {
-          const it = this.items.find((i) => i.id === row.dataset.id);
-          if (it?.info?.element) (it.info.element as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
-        });
+    });
+    list.querySelectorAll<HTMLElement>("[data-scroll]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const it = this.items.find((i) => i.id === btn.dataset.scroll);
+        if (it?.info?.element) (it.info.element as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
       });
-    }
+    });
+    list.querySelectorAll<HTMLInputElement>("[data-note]").forEach((input) => {
+      input.addEventListener("input", () => this.setNote(input.dataset.note!, input.value));
+      input.addEventListener("click", (e) => e.stopPropagation());
+    });
   }
 
   private async askClaude(): Promise<void> {
@@ -352,6 +414,61 @@ export class ActionPanel {
     window.dispatchEvent(new CustomEvent("gc-toast", {
       detail: { msg: `Applied: ${result.applied} rules · ${result.failed} skipped`, color: result.applied > 0 ? "#10b981" : "#f59e0b" },
     }));
+  }
+
+  private exportData(format: "csv" | "json"): void {
+    if (!this.items.length) {
+      window.dispatchEvent(new CustomEvent("gc-toast", { detail: { msg: "Pinch elements first", color: "#f59e0b" } }));
+      return;
+    }
+    const rows = this.items.map((it, i) => {
+      const data = it.info.element ? extractData(it.info.element as HTMLElement) : {};
+      return {
+        index: i + 1,
+        selector: it.selector,
+        tag: it.info.tag,
+        id: it.info.id || "",
+        classes: it.info.classes.join(" "),
+        text: data.text || "",
+        href: data.href || "",
+        src: data.src || "",
+        alt: data.alt || "",
+        value: data.value || "",
+        width: Math.round(it.info.rect.width),
+        height: Math.round(it.info.rect.height),
+        note: it.note || "",
+      };
+    });
+
+    let blob: Blob;
+    let filename: string;
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+    if (format === "json") {
+      const payload = { url: location.href, title: document.title, capturedAt: new Date().toISOString(), elements: rows };
+      blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      filename = `gesture-data-${ts}.json`;
+    } else {
+      const headers = Object.keys(rows[0]);
+      const csvLines = [headers.join(",")];
+      for (const r of rows) {
+        const vals = headers.map((h) => {
+          const v = String((r as any)[h] ?? "");
+          if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+          return v;
+        });
+        csvLines.push(vals.join(","));
+      }
+      blob = new Blob([csvLines.join("\n")], { type: "text/csv" });
+      filename = `gesture-data-${ts}.csv`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    window.dispatchEvent(new CustomEvent("gc-toast", { detail: { msg: `Exported ${this.items.length} rows as ${format.toUpperCase()}`, color: "#10b981" } }));
   }
 
   private exportTask(download: boolean): void {

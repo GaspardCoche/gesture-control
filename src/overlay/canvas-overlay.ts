@@ -294,40 +294,7 @@ export class CanvasOverlay {
       ctx.stroke();
     }
 
-    if (eyeTrackingOn && this.gazeVisible) {
-      const gx = this.gazeCursor.x;
-      const gy = this.gazeCursor.y;
-      const time = performance.now();
-      const pulseRing = 24 + 4 * Math.sin(time / 400);
-      ctx.beginPath();
-      ctx.arc(gx, gy, pulseRing, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(34, 211, 238, 0.25)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(gx, gy, 16, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(34, 211, 238, 0.6)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(gx, gy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(34, 211, 238, 0.95)";
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = "white";
-      ctx.fill();
-
-      if (this.dwellProgress > 0) {
-        ctx.beginPath();
-        ctx.arc(gx, gy, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.dwellProgress);
-        ctx.strokeStyle = "rgba(34, 211, 238, 0.95)";
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.stroke();
-        ctx.lineCap = "butt";
-      }
-    }
+    void eyeTrackingOn;
 
     if (this.scrollIndicator !== 0) {
       const cx = w / 2;

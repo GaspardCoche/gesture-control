@@ -8,12 +8,41 @@ export interface ElementInfo {
   text: string;
   depth: number;
   children: number;
+  element?: HTMLElement;
 }
 
 const IGNORE_IDS = new Set([
   "gesture-canvas", "gesture-hud", "gesture-inspector-panel",
   "gesture-console-panel", "gesture-video-feed", "gesture-overlay-root",
+  "gesture-whiteboard", "gesture-feedback-panel", "gesture-settings-panel",
+  "gesture-toast", "gesture-selection-tray",
 ]);
+
+export type DomNavDirection = "parent" | "firstChild" | "prevSibling" | "nextSibling";
+
+export function navigateFrom(el: HTMLElement, dir: DomNavDirection): HTMLElement | null {
+  switch (dir) {
+    case "parent": {
+      const p = el.parentElement;
+      if (!p || p === document.body || p === document.documentElement) return null;
+      return p;
+    }
+    case "firstChild": {
+      const c = Array.from(el.children).find((c) => c instanceof HTMLElement && !IGNORE_IDS.has(c.id));
+      return (c as HTMLElement) ?? null;
+    }
+    case "prevSibling": {
+      let s = el.previousElementSibling;
+      while (s && (!(s instanceof HTMLElement) || IGNORE_IDS.has(s.id))) s = s.previousElementSibling;
+      return s as HTMLElement ?? null;
+    }
+    case "nextSibling": {
+      let s = el.nextElementSibling;
+      while (s && (!(s instanceof HTMLElement) || IGNORE_IDS.has(s.id))) s = s.nextElementSibling;
+      return s as HTMLElement ?? null;
+    }
+  }
+}
 
 export class DOMInspector {
   panel: HTMLElement;
@@ -134,9 +163,10 @@ export class DOMInspector {
       rect,
       computedStyles,
       attributes,
-      text: (el.textContent || "").trim().slice(0, 80),
+      text: (el.textContent || "").trim().slice(0, 200),
       depth,
       children: el.children.length,
+      element: el,
     };
   }
 

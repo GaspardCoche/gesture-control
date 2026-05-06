@@ -1,9 +1,7 @@
 import { FilesetResolver, HandLandmarker, type NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { classify, type GestureType, type ClassificationResult } from "./classifier";
-import { initFaceDetector, detectGaze, type GazeState } from "./gaze";
 
 export type { GestureType } from "./classifier";
-export type { GazeState } from "./gaze";
 
 export interface GestureState {
   type: GestureType;
@@ -19,12 +17,9 @@ export interface GestureState {
 
 export interface DetectionResult {
   hand: GestureState | null;
-  gaze: GazeState | null;
 }
 
 let handLandmarker: HandLandmarker | null = null;
-let faceReady = false;
-let frameCount = 0;
 
 export async function initDetector(): Promise<void> {
   const vision = await FilesetResolver.forVisionTasks(
@@ -42,18 +37,10 @@ export async function initDetector(): Promise<void> {
     minHandDetectionConfidence: 0.6,
     minTrackingConfidence: 0.6,
   });
-
-  try {
-    await initFaceDetector(vision);
-    faceReady = true;
-  } catch {
-    faceReady = false;
-  }
 }
 
 export function detect(video: HTMLVideoElement, timestamp: number): DetectionResult {
   let hand: GestureState | null = null;
-  let gaze: GazeState | null = null;
 
   if (handLandmarker) {
     const results = handLandmarker.detectForVideo(video, timestamp);
@@ -78,14 +65,5 @@ export function detect(video: HTMLVideoElement, timestamp: number): DetectionRes
     }
   }
 
-  if (faceReady && frameCount % 2 === 0) {
-    gaze = detectGaze(video, timestamp);
-  }
-  frameCount++;
-
-  return { hand, gaze };
-}
-
-export function isFaceReady(): boolean {
-  return faceReady;
+  return { hand };
 }

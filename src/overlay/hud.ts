@@ -28,7 +28,6 @@ export class HUD {
   private gestureIconEl!: HTMLElement;
   private gestureLabelEl!: HTMLElement;
   private fpsEl!: HTMLElement;
-  private eyeEl!: HTMLElement;
   private voiceEl!: HTMLElement;
   private stabilityBar!: HTMLElement;
   private onboardEl!: HTMLElement;
@@ -105,11 +104,6 @@ export class HUD {
         "></div>
       </div>
 
-      <div id="ghud-eye" class="ghud-card ghud-row" style="
-        padding: 6px 12px; border-radius: 10px;
-        font-size: 11px; font-weight: 600; color:#22d3ee;
-      "></div>
-
       <div id="ghud-voice" class="ghud-card" style="
         display: none; padding: 6px 12px; border-radius: 10px;
         background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.35);
@@ -131,18 +125,17 @@ export class HUD {
         <div style="font-weight:700; font-size:13px; margin-bottom:10px; color:#e2e8f0; letter-spacing:-.01em; display:flex; align-items:center; gap:8px;">
           ${icon("zap", 14, { stroke: "#6366f1" })} Quick start
         </div>
-        ${this.helpRow("pointer", "#22d3ee", "Point", "move cursor")}
-        ${this.helpRow("pinch", "#f59e0b", "Pinch", "select / draw / measure")}
-        ${this.helpRow("open_hand", "#10b981", "Open", "release / scroll")}
-        ${this.helpRow("swipe_down", "#a78bfa", "Swipe down", "scroll one page")}
+        ${this.helpRow("pointer", "#22d3ee", "Point", "hover element")}
+        ${this.helpRow("pinch", "#f59e0b", "Pinch", "add to selection")}
+        ${this.helpRow("open_hand", "#10b981", "Open + move", "scroll up/down")}
         ${this.helpRow("peace", "#ec4899", "Peace (1.5s)", "next mode")}
         ${this.helpRow("fist", "#ef4444", "Fist (hold)", "clear all")}
-        ${this.helpRow("thumbs_up", "#22d3ee", "Thumbs up", "toggle eye tracking")}
-        ${this.helpRow("mic", "#f87171", "V key + element", "voice feedback")}
+        ${this.helpRow("mic", "#f87171", "V + selection", "voice command / intent")}
         <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06); font-size:10px; color:#64748b; line-height:1.9;">
-          <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> mode
-          &nbsp; <kbd>C</kbd> clear &nbsp; <kbd>Z</kbd> undo &nbsp; <kbd>H</kbd> help
-          <br><kbd>E</kbd> eye &nbsp; <kbd>V</kbd> voice &nbsp; <kbd>F</kbd> feedback
+          <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> mode &nbsp; <kbd>↑↓←→</kbd> zoom DOM<br/>
+          <kbd>K</kbd> send to Claude &nbsp; <kbd>A</kbd> add &nbsp; <kbd>Esc</kbd> clear<br/>
+          <kbd>C</kbd> clear &nbsp; <kbd>Z</kbd> undo &nbsp; <kbd>V</kbd> voice<br/>
+          <kbd>F</kbd> feedback &nbsp; <kbd>S</kbd> settings &nbsp; <kbd>H</kbd> help
         </div>
       </div>
     `;
@@ -157,12 +150,10 @@ export class HUD {
     this.gestureIconEl = this.root.querySelector("#ghud-gesture-icon")!;
     this.gestureLabelEl = this.root.querySelector("#ghud-gesture-label")!;
     this.fpsEl = this.root.querySelector("#ghud-fps")!;
-    this.eyeEl = this.root.querySelector("#ghud-eye")!;
     this.voiceEl = this.root.querySelector("#ghud-voice")!;
     this.stabilityBar = this.root.querySelector("#ghud-stability-bar")!;
     this.onboardEl = this.root.querySelector("#ghud-onboard")!;
 
-    this.updateEyeTracking(true);
     this.onboardTimer = window.setTimeout(() => this.hideOnboard(), 18000);
   }
 
@@ -227,10 +218,8 @@ export class HUD {
     }
   }
 
-  updateEyeTracking(enabled: boolean) {
-    const color = enabled ? "#22d3ee" : "#475569";
-    this.eyeEl.style.color = color;
-    this.eyeEl.innerHTML = `${icon(enabled ? "eye" : "eye_off", 14, { stroke: color })} <span>Eye ${enabled ? "ON" : "OFF"}</span>`;
+  updateEyeTracking(_enabled: boolean) {
+    // Removed in v5.0
   }
 
   toggleHelp() {

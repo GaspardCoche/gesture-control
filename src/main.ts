@@ -1,10 +1,9 @@
-import { initDetector, detect, isFaceReady, type GestureState, type GestureType, type GazeState } from "./gestures/detector";
-import { resetGazeFilter } from "./gestures/gaze";
+import { initDetector, detect, type GestureState, type GestureType } from "./gestures/detector";
 import { getStabilityInfo } from "./gestures/classifier";
 import { ScrollController } from "./gestures/scroll";
 import { ModeManager } from "./modes";
 import { CanvasOverlay } from "./overlay/canvas-overlay";
-import { DOMInspector } from "./overlay/dom-inspector";
+import { DOMInspector, navigateFrom, type DomNavDirection } from "./overlay/dom-inspector";
 import { HUD } from "./overlay/hud";
 import { SpeechRecorder } from "./voice/speech-recorder";
 import { WhisperRecorder } from "./voice/whisper-recorder";
@@ -13,6 +12,7 @@ import { FeedbackPanel } from "./overlay/feedback-panel";
 import { SettingsPanel } from "./overlay/settings-panel";
 import { matchCommand } from "./voice/command-grammar";
 import { executeCommand, undoLast, undoStackSize } from "./voice/command-executor";
+import { SelectionTray } from "./overlay/selection-tray";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -40,11 +40,9 @@ async function main() {
   window.addEventListener("pagehide", teardown, { once: true });
   window.addEventListener("beforeunload", teardown, { once: true });
 
-  statusEl.textContent = "Loading MediaPipe (hand + face)...";
+  statusEl.textContent = "Loading hand tracking…";
   await initDetector();
-  statusEl.textContent = isFaceReady()
-    ? "Ready — hand + eye tracking"
-    : "Ready — hand tracking (face model failed)";
+  statusEl.textContent = "Ready";
 
   let whisperReady = false;
   if (WhisperRecorder.isSupported()) {
@@ -68,11 +66,11 @@ async function main() {
   const feedbackStore = new FeedbackStore();
   const feedbackPanel = new FeedbackPanel(overlayRoot, feedbackStore);
   const settingsPanel = new SettingsPanel(overlayRoot);
+  const selectionTray = new SelectionTray(overlayRoot);
   feedbackPanel.setOnOpenSettings(() => settingsPanel.show());
   settingsPanel.onChange(() => feedbackPanel.refreshKeyBadge());
 
   let voiceRecorder: VoiceBackend | null = null;
-  let voiceTranscript = "";
 
   const toastEl = document.createElement("div");
   toastEl.id = "gesture-toast";
@@ -99,41 +97,38 @@ async function main() {
     toastTimer = window.setTimeout(() => {
       toastEl.style.opacity = "0";
       toastEl.style.transform = "translateX(-50%) translateY(8px)";
-    }, 2400);
+    }, 2200);
   }
 
   function startVoiceRecording() {
-    if (!inspector.selectedElement) return;
     const useWhisper = whisperReady && WhisperRecorder.isSupported();
     const useWebSpeech = !useWhisper && SpeechRecorder.isSupported();
     if (!useWhisper && !useWebSpeech) return;
 
-    voiceTranscript = "";
     canvas.recordingActive = true;
     hud.updateVoice(true);
 
     const callbacks = {
-      onInterim: (text: string) => { voiceTranscript = text; },
+      onInterim: (_: string) => {},
       onFinal: (text: string, confidence: number) => {
-        voiceTranscript = text;
         const target = inspector.selectedElement;
-        if (!target) return;
-
-        const match = matchCommand(text);
-        if (match) {
-          const result = executeCommand(target as HTMLElement, match.action);
-          if (result.ok) {
-            showToast(`✓ ${result.message}`, "#10b981");
-          } else {
-            showToast(`✗ ${result.message}`, "#ef4444");
+        if (target) {
+          const match = matchCommand(text);
+          if (match) {
+            const result = executeCommand(target as HTMLElement, match.action);
+            showToast(`${result.ok ? "✓" : "✗"} ${result.message}`, result.ok ? "#10b981" : "#ef4444");
+            return;
           }
-          return;
+          const info = inspector.getInfo(target);
+          feedbackStore.add(info, text, confidence);
+          feedbackPanel.show();
+          showToast("Feedback recorded — open panel (F)", "#a78bfa");
+        } else if (selectionTray.count() > 0) {
+          selectionTray.setIntent(text);
+          showToast("Intent set — Send to Claude Code (K)", "#a78bfa");
+        } else {
+          showToast("Nothing selected", "#f59e0b");
         }
-
-        const info = inspector.getInfo(target);
-        feedbackStore.add(info, text, confidence);
-        feedbackPanel.show();
-        showToast(`Feedback recorded — open panel (F)`, "#a78bfa");
       },
       onError: (err: string) => {
         canvas.recordingActive = false;
@@ -155,6 +150,32 @@ async function main() {
     if (voiceRecorder?.recording) voiceRecorder.stop();
   }
 
+  function curateSelection(): void {
+    const target = inspector.selectedElement;
+    if (!target) {
+      showToast("Pinch an element first", "#f59e0b");
+      return;
+    }
+    const info = inspector.getInfo(target);
+    selectionTray.add(target, info);
+    showToast(`Added to selection (${selectionTray.count()})`, "#10b981");
+  }
+
+  function navigateDom(dir: DomNavDirection): void {
+    const cur = inspector.selectedElement;
+    if (!cur) {
+      showToast("No element selected", "#f59e0b");
+      return;
+    }
+    const next = navigateFrom(cur, dir);
+    if (!next) {
+      showToast(`No ${dir}`, "#64748b");
+      return;
+    }
+    inspector.select(next);
+    canvas.setHighlight(next.getBoundingClientRect(), inspector.getTagLabel(next));
+  }
+
   hud.updateMode(modes.current);
   if (modes.current === "draw" && canvas.whiteboardMode) canvas.setWhiteboardVisible(true);
   modes.onChange((mode) => {
@@ -169,65 +190,52 @@ async function main() {
   let lastGesture: GestureType = "NONE";
   let gestureStartTime = 0;
   let peaceDebounce = 0;
-  let eyeTrackingEnabled = true;
-  let lastGaze: GazeState | null = null;
-  let blinkDebounce = 0;
-
-  const gazeSmooth = { x: 0.5, y: 0.5 };
-  const GAZE_SMOOTHING = 0.6;
 
   function handleGesture(state: GestureState) {
     const { type } = state;
     canvas.updateCursor(state.indexTip.x, state.indexTip.y, modes.current === "draw" ? "draw" : "default");
 
     const scrollAmount = scrollCtrl.update(type, state.wrist.y);
+    if (scrollAmount !== 0) canvas.setScrollIndicator(scrollAmount);
+    else canvas.setScrollIndicator(0);
 
     if (type !== lastGesture) {
-      if (lastGesture === "PINCH" && modes.current === "draw") {
-        canvas.endStroke();
-      }
+      if (lastGesture === "PINCH" && modes.current === "draw") canvas.endStroke();
       gestureStartTime = Date.now();
     }
 
     const mode = modes.current;
 
-    if (type === "OPEN" && scrollCtrl.isScrolling) {
-      canvas.setScrollIndicator(scrollAmount);
-      hud.updateGesture(type, state.confidence);
-      lastGesture = type;
-      return;
-    }
-
     switch (type) {
       case "POINT":
         if (mode === "inspect") {
           const el = inspector.getElementAt(canvas.smoothCursor.x, canvas.smoothCursor.y);
-          if (el) {
+          if (el && el !== inspector.hoveredElement) {
             const rect = inspector.hover(el);
             canvas.setHighlight(rect, inspector.getTagLabel(el));
-          } else {
+          } else if (!el) {
             canvas.setHighlight(null);
           }
         }
         break;
 
       case "PINCH":
-        if (mode === "inspect") {
+        if (mode === "inspect" && type !== lastGesture) {
           const el = inspector.getElementAt(canvas.smoothCursor.x, canvas.smoothCursor.y);
           if (el) {
             inspector.select(el);
-            const rect = el.getBoundingClientRect();
-            canvas.setHighlight(rect, inspector.getTagLabel(el));
+            canvas.setHighlight(el.getBoundingClientRect(), inspector.getTagLabel(el));
+            const info = inspector.getInfo(el);
+            selectionTray.add(el, info);
+            showToast(`Added (${selectionTray.count()})`, "#10b981");
           }
         }
         if (mode === "draw") {
           if (!canvas.isDrawing) canvas.startStroke();
           canvas.addStrokePoint();
         }
-        if (mode === "measure") {
-          if (type !== lastGesture) {
-            canvas.addMeasurePoint();
-          }
+        if (mode === "measure" && type !== lastGesture) {
+          canvas.addMeasurePoint();
         }
         break;
 
@@ -241,11 +249,6 @@ async function main() {
 
       case "OPEN":
         if (mode === "draw" && canvas.isDrawing) canvas.endStroke();
-        if (mode === "inspect") {
-          canvas.setHighlight(null);
-          inspector.select(null);
-        }
-        canvas.setScrollIndicator(0);
         break;
 
       case "PEACE":
@@ -254,82 +257,14 @@ async function main() {
           peaceDebounce = Date.now();
         }
         break;
-
-      case "THUMBS_UP":
-        if (type !== lastGesture) {
-          eyeTrackingEnabled = !eyeTrackingEnabled;
-          if (eyeTrackingEnabled) resetGazeFilter();
-          hud.updateEyeTracking(eyeTrackingEnabled);
-        }
-        break;
     }
 
     hud.updateGesture(type, state.confidence);
     lastGesture = type;
   }
 
-  let dwellTarget: Element | null = null;
-  let dwellStartTime = 0;
-  const DWELL_MS = 1500;
-  const DWELL_TOLERANCE_PX = 60;
-  let lastDwellGx = 0;
-  let lastDwellGy = 0;
-
-  function handleGaze(gaze: GazeState) {
-    if (!eyeTrackingEnabled) return;
-    lastGaze = gaze;
-
-    gazeSmooth.x += (gaze.x - gazeSmooth.x) * GAZE_SMOOTHING;
-    gazeSmooth.y += (gaze.y - gazeSmooth.y) * GAZE_SMOOTHING;
-
-    canvas.updateGazeCursor(gazeSmooth.x, gazeSmooth.y);
-
-    const gx = gazeSmooth.x * window.innerWidth;
-    const gy = gazeSmooth.y * window.innerHeight;
-
-    const movedFar = Math.hypot(gx - lastDwellGx, gy - lastDwellGy) > DWELL_TOLERANCE_PX;
-    if (movedFar) {
-      dwellTarget = inspector.getElementAt(gx, gy);
-      dwellStartTime = performance.now();
-      lastDwellGx = gx;
-      lastDwellGy = gy;
-      canvas.dwellProgress = 0;
-    } else if (dwellTarget && modes.current === "inspect") {
-      const elapsed = performance.now() - dwellStartTime;
-      canvas.dwellProgress = Math.min(1, elapsed / DWELL_MS);
-      if (elapsed >= DWELL_MS) {
-        inspector.select(dwellTarget as HTMLElement);
-        const rect = (dwellTarget as HTMLElement).getBoundingClientRect();
-        canvas.setHighlight(rect, inspector.getTagLabel(dwellTarget as HTMLElement));
-        canvas.dwellProgress = 0;
-        dwellStartTime = performance.now() + 99999;
-      }
-    } else {
-      canvas.dwellProgress = 0;
-    }
-
-    if (gaze.bothBlink && Date.now() - blinkDebounce > 800) {
-      blinkDebounce = Date.now();
-      const mode = modes.current;
-
-      if (mode === "inspect") {
-        const el = inspector.getElementAt(gx, gy);
-        if (el) {
-          inspector.select(el);
-          const rect = el.getBoundingClientRect();
-          canvas.setHighlight(rect, inspector.getTagLabel(el));
-        }
-      }
-      if (mode === "measure") {
-        canvas.addMeasurePointAt(gx, gy);
-      }
-    }
-  }
-
   function handleNoHand() {
-    if (lastGesture === "PINCH" && modes.current === "draw") {
-      canvas.endStroke();
-    }
+    if (lastGesture === "PINCH" && modes.current === "draw") canvas.endStroke();
     canvas.trail = [];
     lastGesture = "NONE";
     hud.updateGesture("NONE", 0);
@@ -337,21 +272,22 @@ async function main() {
 
   if (location.search.includes("debug") || localStorage.getItem("gc_debug") === "1") {
     scrollCtrl.setDebug(true);
-    console.info("[gesture-control] debug mode ON — scroll events will be logged");
+    console.info("[gesture-control] debug mode ON");
   }
   (window as any).__gc = {
-    enableDebug: () => { localStorage.setItem("gc_debug", "1"); scrollCtrl.setDebug(true); console.info("debug ON, reload to also enable on next session"); },
+    enableDebug: () => { localStorage.setItem("gc_debug", "1"); scrollCtrl.setDebug(true); console.info("debug ON"); },
     disableDebug: () => { localStorage.removeItem("gc_debug"); scrollCtrl.setDebug(false); console.info("debug OFF"); },
   };
 
   document.addEventListener("keydown", (e) => {
     const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select" || (e.target as HTMLElement)?.isContentEditable) return;
+
     if (e.key === "1") modes.set("inspect");
-    if (e.key === "2") modes.set("draw");
-    if (e.key === "3") modes.set("measure");
-    if (e.key === "c" || e.key === "C") { canvas.clearAll(); inspector.select(null); }
-    if (e.key === "z" || e.key === "Z") {
+    else if (e.key === "2") modes.set("draw");
+    else if (e.key === "3") modes.set("measure");
+    else if (e.key === "c" || e.key === "C") { canvas.clearAll(); inspector.select(null); }
+    else if (e.key === "z" || e.key === "Z") {
       if (undoStackSize() > 0) {
         const r = undoLast();
         showToast(r.message, r.ok ? "#22d3ee" : "#64748b");
@@ -359,48 +295,37 @@ async function main() {
         canvas.undoStroke();
       }
     }
-    if (e.key === "h" || e.key === "H") hud.toggleHelp();
-    if (e.key === "e" || e.key === "E") {
-      eyeTrackingEnabled = !eyeTrackingEnabled;
-      gazeSmooth.x = 0.5;
-      gazeSmooth.y = 0.5;
-      resetGazeFilter();
-      hud.updateEyeTracking(eyeTrackingEnabled);
+    else if (e.key === "h" || e.key === "H") hud.toggleHelp();
+    else if (e.key === "v" || e.key === "V") {
+      if (voiceRecorder?.recording) stopVoiceRecording();
+      else startVoiceRecording();
     }
-    if (e.key === "v" || e.key === "V") {
-      if (voiceRecorder?.recording) {
-        stopVoiceRecording();
-      } else {
-        startVoiceRecording();
-      }
-    }
-    if (e.key === "f" || e.key === "F") {
-      feedbackPanel.toggle();
-    }
-    if (e.key === "s" || e.key === "S") {
-      settingsPanel.toggle();
-    }
-    if (e.key === "w" || e.key === "W") {
+    else if (e.key === "f" || e.key === "F") feedbackPanel.toggle();
+    else if (e.key === "s" || e.key === "S") settingsPanel.toggle();
+    else if (e.key === "w" || e.key === "W") {
       canvas.toggleWhiteboardMode();
       canvas.setWhiteboardVisible(modes.current === "draw" && canvas.whiteboardMode);
     }
+    else if (e.key === "a" || e.key === "A") curateSelection();
+    else if (e.key === "k" || e.key === "K") {
+      if (selectionTray.count() === 0) { showToast("Nothing selected", "#f59e0b"); return; }
+      (document.querySelector("#gesture-selection-tray #gst-send") as HTMLElement)?.click();
+    }
+    else if (e.key === "Escape") { selectionTray.clear(); inspector.select(null); canvas.setHighlight(null); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); navigateDom("parent"); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); navigateDom("firstChild"); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); navigateDom("prevSibling"); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); navigateDom("nextSibling"); }
   });
 
   function loop() {
     const now = performance.now();
     const result = detect(videoEl, now);
 
-    if (result.hand && result.hand.type !== "NONE") {
-      handleGesture(result.hand);
-    } else {
-      handleNoHand();
-    }
+    if (result.hand && result.hand.type !== "NONE") handleGesture(result.hand);
+    else handleNoHand();
 
-    if (result.gaze) {
-      handleGaze(result.gaze);
-    }
-
-    canvas.render(lastGesture, modes.current, eyeTrackingEnabled);
+    canvas.render(lastGesture, modes.current, false);
     hud.updateFPS();
     hud.updateStability(getStabilityInfo());
     rafId = requestAnimationFrame(loop);
@@ -412,5 +337,5 @@ async function main() {
 main().catch((err) => {
   const el = document.getElementById("status");
   if (el) el.textContent = "Error: " + (err?.message ?? err);
-  console.error("Gesture DevTools failed:", err);
+  console.error("Gesture Control failed:", err);
 });

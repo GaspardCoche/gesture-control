@@ -28,7 +28,7 @@ let frameCount = 0;
 
 export async function initDetector(): Promise<void> {
   const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
   );
 
   handLandmarker = await HandLandmarker.createFromOptions(vision, {

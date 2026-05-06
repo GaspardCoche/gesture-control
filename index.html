@@ -386,6 +386,179 @@
       font-size: 10px;
     }
 
+    /* ───── app workspace (real testing environment) ───── */
+    .app-workspace {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 0;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .app-toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .app-traffic { display: flex; gap: 6px; }
+    .app-traffic span { width: 11px; height: 11px; border-radius: 50%; }
+    .app-tab {
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      background: transparent; border: 1px solid transparent;
+      cursor: pointer; transition: all .12s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .app-tab:hover { color: var(--text-2); background: var(--surface-2); }
+    .app-tab.active { color: var(--text); background: var(--surface-2); border-color: var(--border-strong); }
+    .app-body { padding: 24px; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; font-weight: 600; }
+    .kpi-value { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .kpi-delta { font-size: 11px; font-weight: 600; }
+    .kpi-delta.up { color: var(--success); }
+    .kpi-delta.down { color: var(--danger); }
+
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px; margin-bottom: 16px;
+    }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .chart-title { font-size: 13px; font-weight: 700; }
+    .chart-legend { display: flex; gap: 12px; font-size: 10px; color: var(--muted); }
+    .chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .chart-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .chart-svg { width: 100%; height: 180px; }
+
+    .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .kanban-col {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px;
+    }
+    .kanban-col-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .kanban-col-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .kanban-col-count { font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 1px 8px; border-radius: 8px; }
+    .kanban-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px; margin-bottom: 8px;
+      cursor: pointer; transition: all .12s;
+    }
+    .kanban-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+    .kanban-card-tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .kanban-card-tag.bug { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .kanban-card-tag.feat { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .kanban-card-tag.chore { background: rgba(34,211,238,0.15); color: #67e8f9; }
+    .kanban-card-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; }
+    .kanban-card-meta { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); }
+    .kanban-avatar { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: white; }
+
+    .data-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .data-table th {
+      padding: 10px 14px; text-align: left;
+      font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;
+      font-weight: 600;
+      background: var(--surface-2); border-bottom: 1px solid var(--border);
+    }
+    .data-table td { padding: 10px 14px; font-size: 12px; border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--surface-2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; }
+    .badge.success { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+    .badge.warning { background: rgba(245,158,11,0.15); color: #fcd34d; }
+    .badge.danger { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .badge.neutral { background: rgba(148,163,184,0.15); color: var(--text-2); }
+
+    .form-builder {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .form-field label { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; font-weight: 600; }
+    .form-field input, .form-field select, .form-field textarea {
+      width: 100%; padding: 9px 12px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 12px;
+      font-family: inherit; transition: all .12s;
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .form-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .switch-row:last-child { border-bottom: none; }
+    .switch-row-label { font-size: 12px; }
+    .switch-row-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .switch {
+      position: relative; width: 36px; height: 20px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      border-radius: 999px; cursor: pointer; transition: all .15s;
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--text-2); transition: all .15s;
+    }
+    .switch.on { background: var(--primary); border-color: var(--primary); }
+    .switch.on::after { left: 18px; background: white; }
+
+    .code-editor {
+      background: #0a0a13; border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+    .code-tabs { display: flex; background: #07070b; border-bottom: 1px solid var(--border); }
+    .code-tab { padding: 8px 14px; font-size: 11px; color: var(--muted); cursor: pointer; border-right: 1px solid var(--border); }
+    .code-tab.active { color: var(--text); background: var(--bg-elev); }
+    .code-body { padding: 16px; font-size: 12px; line-height: 1.7; color: #e2e8f0; }
+    .tok-key { color: #c084fc; }
+    .tok-str { color: #86efac; }
+    .tok-com { color: #64748b; font-style: italic; }
+    .tok-num { color: #fcd34d; }
+    .tok-fn { color: #67e8f9; }
+
+    .modal-overlay-demo {
+      background: rgba(0,0,0,0.6); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: 14px; padding: 24px; max-width: 400px; width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .notif-stack { display: flex; flex-direction: column; gap: 10px; }
+    .notif {
+      display: flex; gap: 12px; padding: 12px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .notif-icon { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .notif-content h5 { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+    .notif-content p { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .notif-content time { font-size: 10px; color: var(--muted-2); }
+
+    .app-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .app-section-title {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
     @media (max-width: 900px) {
       .page { grid-template-columns: 1fr; }
       .sidebar { display: none; }
@@ -393,9 +566,10 @@
       .nav { padding: 12px 20px; }
       section { padding: 48px 20px; }
       .hero { padding: 48px 20px; }
+      .kpi-grid, .kanban, .app-grid-2, .form-row { grid-template-columns: 1fr; }
     }
   </style>
-  <script type="module" crossorigin src="/gesture-control/assets/index-CF_My4cF.js"></script>
+  <script type="module" crossorigin src="/gesture-control/assets/index-BuxEqwEe.js"></script>
 </head>
 <body>
   <div class="page">
@@ -416,6 +590,7 @@
           <a href="#features">Features</a>
           <a href="#use-cases">Use cases</a>
           <a href="#playground">Try it</a>
+          <a href="#app">App demo</a>
           <a class="nav-cta" href="https://github.com/GaspardCoche/gesture-control" target="_blank" rel="noopener">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
             GitHub
@@ -427,7 +602,7 @@
       <section class="hero">
         <span class="hero-pill">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          v3.2 — Hand + Eye + Voice tracking, fully on-device
+          v3.3 — Whiteboard, OneEuro smoothing, voice commands
         </span>
         <h1>Control the web<br/><span class="accent">with your hands.</span></h1>
         <p class="lead">
@@ -689,6 +864,306 @@
         </div>
       </section>
 
+      <section id="app">
+        <div class="section-eyebrow">App workspace</div>
+        <h2 class="section-title">A real product to play with.</h2>
+        <p class="section-lead">Forms, dashboards, kanban, tables, code editor, modals — everything you'd expect in a real app. Inspect any element, draw on top, measure spacing, dictate changes.</p>
+
+        <div class="app-workspace">
+          <div class="app-toolbar">
+            <div class="app-traffic">
+              <span style="background:#ef4444;"></span>
+              <span style="background:#f59e0b;"></span>
+              <span style="background:#10b981;"></span>
+            </div>
+            <div style="flex:1; padding-left:12px; font-size:11px; color:var(--muted);">demo.gesturecontrol.app</div>
+            <button class="app-tab active">Dashboard</button>
+            <button class="app-tab">Tasks</button>
+            <button class="app-tab">Reports</button>
+            <button class="app-tab">Settings</button>
+          </div>
+
+          <div class="app-body">
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-label">Monthly Revenue</div>
+                <div class="kpi-value">$128,450</div>
+                <div class="kpi-delta up">+12.4% vs last month</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Active Users</div>
+                <div class="kpi-value">8,243</div>
+                <div class="kpi-delta up">+847 this week</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Conversion</div>
+                <div class="kpi-value">3.27%</div>
+                <div class="kpi-delta down">−0.4 pts</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Avg. Session</div>
+                <div class="kpi-value">4m 12s</div>
+                <div class="kpi-delta up">+18s</div>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-header">
+                <div class="chart-title">Revenue · last 30 days</div>
+                <div class="chart-legend">
+                  <span><span class="dot" style="background:#6366f1;"></span>Revenue</span>
+                  <span><span class="dot" style="background:#22d3ee;"></span>Forecast</span>
+                </div>
+              </div>
+              <svg class="chart-svg" viewBox="0 0 600 180" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="grad-rev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
+                  <line x1="0" y1="40" x2="600" y2="40"/>
+                  <line x1="0" y1="80" x2="600" y2="80"/>
+                  <line x1="0" y1="120" x2="600" y2="120"/>
+                  <line x1="0" y1="160" x2="600" y2="160"/>
+                </g>
+                <path d="M 0 130 L 30 110 L 60 120 L 90 95 L 120 105 L 150 80 L 180 90 L 210 70 L 240 85 L 270 60 L 300 75 L 330 55 L 360 65 L 390 45 L 420 55 L 450 35 L 480 50 L 510 30 L 540 45 L 570 25 L 600 40 L 600 180 L 0 180 Z" fill="url(#grad-rev)"/>
+                <path d="M 0 130 L 30 110 L 60 120 L 90 95 L 120 105 L 150 80 L 180 90 L 210 70 L 240 85 L 270 60 L 300 75 L 330 55 L 360 65 L 390 45 L 420 55 L 450 35 L 480 50 L 510 30 L 540 45 L 570 25 L 600 40" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 480 50 L 510 35 L 540 25 L 570 15 L 600 5" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
+              </svg>
+            </div>
+
+            <div class="app-grid-2">
+              <div>
+                <div class="app-section-title">Tasks board</div>
+                <div class="kanban">
+                  <div class="kanban-col">
+                    <div class="kanban-col-header">
+                      <span class="kanban-col-title">To do</span>
+                      <span class="kanban-col-count">3</span>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag bug">Bug</span>
+                      <div class="kanban-card-title">Cursor jumps when hand exits frame</div>
+                      <div class="kanban-card-meta"><span>#421</span><span class="kanban-avatar">GC</span></div>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag feat">Feature</span>
+                      <div class="kanban-card-title">Voice command to drag elements</div>
+                      <div class="kanban-card-meta"><span>#430</span><span class="kanban-avatar">GC</span></div>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag chore">Chore</span>
+                      <div class="kanban-card-title">Update MediaPipe to 0.10.36</div>
+                      <div class="kanban-card-meta"><span>#431</span><span class="kanban-avatar">CL</span></div>
+                    </div>
+                  </div>
+                  <div class="kanban-col">
+                    <div class="kanban-col-header">
+                      <span class="kanban-col-title">In progress</span>
+                      <span class="kanban-col-count">2</span>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag feat">Feature</span>
+                      <div class="kanban-card-title">Whiteboard mode in Draw</div>
+                      <div class="kanban-card-meta"><span>#418</span><span class="kanban-avatar">GC</span></div>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag bug">Bug</span>
+                      <div class="kanban-card-title">Whisper warmup blocks main thread</div>
+                      <div class="kanban-card-meta"><span>#419</span><span class="kanban-avatar">CL</span></div>
+                    </div>
+                  </div>
+                  <div class="kanban-col">
+                    <div class="kanban-col-header">
+                      <span class="kanban-col-title">Done</span>
+                      <span class="kanban-col-count">5</span>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag feat">Feature</span>
+                      <div class="kanban-card-title">Voice commands grammar (FR/EN)</div>
+                      <div class="kanban-card-meta"><span>#410</span><span class="kanban-avatar">CL</span></div>
+                    </div>
+                    <div class="kanban-card">
+                      <span class="kanban-card-tag feat">Feature</span>
+                      <div class="kanban-card-title">Kalman filter on iris gaze</div>
+                      <div class="kanban-card-meta"><span>#412</span><span class="kanban-avatar">GC</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="app-section-title">Settings</div>
+                <div class="form-builder">
+                  <div class="switch-row">
+                    <div>
+                      <div class="switch-row-label">Dark mode</div>
+                      <div class="switch-row-desc">Use system theme by default</div>
+                    </div>
+                    <div class="switch on" data-toggle></div>
+                  </div>
+                  <div class="switch-row">
+                    <div>
+                      <div class="switch-row-label">Email notifications</div>
+                      <div class="switch-row-desc">Daily digest at 8am</div>
+                    </div>
+                    <div class="switch" data-toggle></div>
+                  </div>
+                  <div class="switch-row">
+                    <div>
+                      <div class="switch-row-label">Auto-save drafts</div>
+                      <div class="switch-row-desc">Every 30 seconds</div>
+                    </div>
+                    <div class="switch on" data-toggle></div>
+                  </div>
+                  <div class="switch-row">
+                    <div>
+                      <div class="switch-row-label">Beta features</div>
+                      <div class="switch-row-desc">Early access to new tools</div>
+                    </div>
+                    <div class="switch" data-toggle></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;">
+              <div class="app-section-title">Recent transactions</div>
+              <table class="data-table">
+                <thead>
+                  <tr><th>Date</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>May 6, 2026</td><td>Acme Industries</td><td>Enterprise</td><td>$2,400</td><td><span class="badge success">Paid</span></td></tr>
+                  <tr><td>May 6, 2026</td><td>Globex Corp</td><td>Pro</td><td>$199</td><td><span class="badge success">Paid</span></td></tr>
+                  <tr><td>May 5, 2026</td><td>Initech</td><td>Pro</td><td>$199</td><td><span class="badge warning">Pending</span></td></tr>
+                  <tr><td>May 5, 2026</td><td>Stark Industries</td><td>Enterprise</td><td>$2,400</td><td><span class="badge success">Paid</span></td></tr>
+                  <tr><td>May 4, 2026</td><td>Wayne Enterprises</td><td>Pro</td><td>$199</td><td><span class="badge danger">Failed</span></td></tr>
+                  <tr><td>May 4, 2026</td><td>Soylent Corp</td><td>Starter</td><td>$49</td><td><span class="badge success">Paid</span></td></tr>
+                  <tr><td>May 3, 2026</td><td>Cyberdyne Systems</td><td>Pro</td><td>$199</td><td><span class="badge neutral">Refunded</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="app-grid-2" style="margin-top:24px;">
+              <div>
+                <div class="app-section-title">New customer</div>
+                <div class="form-builder">
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="cust-first">First name</label>
+                      <input id="cust-first" type="text" placeholder="Ada" />
+                    </div>
+                    <div class="form-field">
+                      <label for="cust-last">Last name</label>
+                      <input id="cust-last" type="text" placeholder="Lovelace" />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="cust-email">Email</label>
+                      <input id="cust-email" type="email" placeholder="ada@example.com" />
+                    </div>
+                    <div class="form-field">
+                      <label for="cust-plan">Plan</label>
+                      <select id="cust-plan">
+                        <option>Starter</option>
+                        <option selected>Pro</option>
+                        <option>Enterprise</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="cust-notes">Notes</label>
+                    <textarea id="cust-notes" rows="3" placeholder="Optional context about this customer..."></textarea>
+                  </div>
+                  <div class="form-actions">
+                    <button type="button" class="btn-secondary" style="padding:8px 16px;font-size:12px;">Cancel</button>
+                    <button type="button" class="btn-primary" style="padding:8px 16px;font-size:12px;">Create customer</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="app-section-title">Activity</div>
+                <div class="notif-stack">
+                  <div class="notif">
+                    <div class="notif-icon" style="background:rgba(16,185,129,0.15); color:#6ee7b7;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="notif-content">
+                      <h5>Payment received</h5>
+                      <p>$2,400 from Acme Industries · invoice INV-2026-0421</p>
+                      <time>2 minutes ago</time>
+                    </div>
+                  </div>
+                  <div class="notif">
+                    <div class="notif-icon" style="background:rgba(99,102,241,0.15); color:#a5b4fc;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8 8 0 0 1 13 0"/></svg>
+                    </div>
+                    <div class="notif-content">
+                      <h5>New signup</h5>
+                      <p>jane@example.com joined the Pro plan</p>
+                      <time>14 minutes ago</time>
+                    </div>
+                  </div>
+                  <div class="notif">
+                    <div class="notif-icon" style="background:rgba(245,158,11,0.15); color:#fcd34d;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <div class="notif-content">
+                      <h5>Failed payment retry</h5>
+                      <p>Wayne Enterprises · will retry in 3 days</p>
+                      <time>1 hour ago</time>
+                    </div>
+                  </div>
+                  <div class="notif">
+                    <div class="notif-icon" style="background:rgba(34,211,238,0.15); color:#67e8f9;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </div>
+                    <div class="notif-content">
+                      <h5>Performance alert</h5>
+                      <p>API p95 latency 320ms (threshold 250ms)</p>
+                      <time>2 hours ago</time>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="app-grid-2" style="margin-top:24px;">
+              <div>
+                <div class="app-section-title">Code preview</div>
+                <div class="code-editor">
+                  <div class="code-tabs">
+                    <div class="code-tab active">handler.ts</div>
+                    <div class="code-tab">api.ts</div>
+                    <div class="code-tab">utils.ts</div>
+                  </div>
+                  <div class="code-body"><span class="tok-com">// Stripe webhook handler</span><br/><span class="tok-key">import</span> { stripe } <span class="tok-key">from</span> <span class="tok-str">"./stripe"</span>;<br/><br/><span class="tok-key">export async function</span> <span class="tok-fn">handleWebhook</span>(req: Request) {<br/>&nbsp;&nbsp;<span class="tok-key">const</span> sig = req.headers.<span class="tok-fn">get</span>(<span class="tok-str">"stripe-signature"</span>);<br/>&nbsp;&nbsp;<span class="tok-key">const</span> body = <span class="tok-key">await</span> req.<span class="tok-fn">text</span>();<br/>&nbsp;&nbsp;<span class="tok-key">const</span> event = stripe.webhooks.<span class="tok-fn">construct</span>(body, sig, secret);<br/><br/>&nbsp;&nbsp;<span class="tok-key">switch</span> (event.type) {<br/>&nbsp;&nbsp;&nbsp;&nbsp;<span class="tok-key">case</span> <span class="tok-str">"payment_intent.succeeded"</span>:<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tok-key">await</span> <span class="tok-fn">markPaid</span>(event.data.object.id);<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tok-key">return</span> { ok: <span class="tok-num">true</span> };<br/>&nbsp;&nbsp;}<br/>}</div>
+                </div>
+              </div>
+
+              <div>
+                <div class="app-section-title">Modal preview</div>
+                <div class="modal-overlay-demo">
+                  <div class="modal-card">
+                    <div class="modal-title">Delete this customer?</div>
+                    <div class="modal-desc">All associated invoices, subscriptions, and audit logs will be permanently removed. This action cannot be undone.</div>
+                    <div class="modal-actions">
+                      <button type="button" class="btn-secondary" style="padding:8px 16px;font-size:12px;">Cancel</button>
+                      <button type="button" style="padding:8px 16px;font-size:12px;font-weight:600;background:var(--danger);color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">Delete customer</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="final-cta">
         <h2>No mouse. No keyboard.<br/>Just your hands.</h2>
         <p>Open source. Runs locally. Free forever.</p>
@@ -705,7 +1180,7 @@
       </section>
 
       <footer class="footer">
-        <span>Gesture Control v3.2 — built with MediaPipe, Whisper &amp; WebGPU</span>
+        <span>Gesture Control v3.3 — built with MediaPipe, Whisper &amp; WebGPU</span>
         <div class="footer-links">
           <a href="https://github.com/GaspardCoche/gesture-control" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/GaspardCoche/gesture-control/issues" target="_blank" rel="noopener">Issues</a>
@@ -756,6 +1231,25 @@
         const r = card.getBoundingClientRect();
         card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
         card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      });
+    });
+
+    document.querySelectorAll('[data-toggle]').forEach(sw => {
+      sw.addEventListener('click', () => sw.classList.toggle('on'));
+    });
+
+    document.querySelectorAll('.app-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const siblings = tab.parentElement.querySelectorAll('.app-tab');
+        siblings.forEach(s => s.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+    document.querySelectorAll('.code-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const siblings = tab.parentElement.querySelectorAll('.code-tab');
+        siblings.forEach(s => s.classList.remove('active'));
+        tab.classList.add('active');
       });
     });
   </script>

@@ -1,6 +1,14 @@
 import type { FeedbackStore, FeedbackItem } from "../voice/feedback-store";
 import { askClaudeStream, hasApiKey } from "../ai/anthropic-client";
 import { icon } from "./icons";
+import DOMPurify from "dompurify";
+
+const DOMPURIFY_CONFIG: any = {
+  ALLOWED_TAGS: ["pre", "code", "strong", "em", "br", "div", "span", "ul", "ol", "li", "p"],
+  ALLOWED_ATTR: ["style"],
+  ALLOWED_URI_REGEXP: /^(?:about:blank)$/,
+  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
+};
 
 export class FeedbackPanel {
   private panel: HTMLElement;
@@ -261,7 +269,7 @@ export class FeedbackPanel {
     html = html.replace(/^- (.+)$/gm, `<div style="padding-left:12px;">• $1</div>`);
     html = html.replace(/\n\n/g, "<br/><br/>");
     html = html.replace(/\n/g, "<br/>");
-    return html;
+    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG) as unknown as string;
   }
 
   private esc(str: string): string {

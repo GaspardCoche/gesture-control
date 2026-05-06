@@ -75,6 +75,11 @@ export function executeCommand(element: HTMLElement, action: CommandAction): { o
       pushUndo({ element: new WeakRef(element), property: "display", previousValue: prev, label: action.label, timestamp: Date.now() });
       return { ok: true, message: action.label };
     }
+    default: {
+      const _exhaustive: never = action;
+      void _exhaustive;
+      return { ok: false, message: "Unknown command" };
+    }
   }
 }
 

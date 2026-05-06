@@ -35,6 +35,8 @@ export class CanvasOverlay {
   private readonly TRAIL_LEN = 14;
   private cursorFilter: OneEuro2D;
   private drawFilter: OneEuro2D;
+  private _w = 0;
+  private _h = 0;
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
@@ -72,25 +74,33 @@ export class CanvasOverlay {
 
   resize() {
     const dpr = window.devicePixelRatio;
-    this.canvas.width = window.innerWidth * dpr;
-    this.canvas.height = window.innerHeight * dpr;
-    this.canvas.style.width = window.innerWidth + "px";
-    this.canvas.style.height = window.innerHeight + "px";
+    this._w = window.innerWidth;
+    this._h = window.innerHeight;
+    this.canvas.width = this._w * dpr;
+    this.canvas.height = this._h * dpr;
+    this.canvas.style.width = this._w + "px";
+    this.canvas.style.height = this._h + "px";
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.whiteboard.style.width = window.innerWidth + "px";
-    this.whiteboard.style.height = window.innerHeight + "px";
+    this.whiteboard.style.width = this._w + "px";
+    this.whiteboard.style.height = this._h + "px";
   }
 
   updateCursor(nx: number, ny: number, mode: "draw" | "default" = "default") {
-    this.cursor.x = (1 - nx) * window.innerWidth;
-    this.cursor.y = ny * window.innerHeight;
+    this.cursor.x = (1 - nx) * this._w;
+    this.cursor.y = ny * this._h;
     const t = performance.now();
     const filter = mode === "draw" ? this.drawFilter : this.cursorFilter;
     const out = filter.filter(this.cursor.x, this.cursor.y, t);
     this.smoothCursor.x = out.x;
     this.smoothCursor.y = out.y;
-    this.trail.push({ ...this.smoothCursor });
-    if (this.trail.length > this.TRAIL_LEN) this.trail.shift();
+    if (this.trail.length >= this.TRAIL_LEN) {
+      const reused = this.trail.shift()!;
+      reused.x = this.smoothCursor.x;
+      reused.y = this.smoothCursor.y;
+      this.trail.push(reused);
+    } else {
+      this.trail.push({ x: this.smoothCursor.x, y: this.smoothCursor.y });
+    }
   }
 
   resetCursorFilter(): void {
@@ -144,8 +154,8 @@ export class CanvasOverlay {
   }
 
   updateGazeCursor(nx: number, ny: number) {
-    this.gazeCursor.x = nx * window.innerWidth;
-    this.gazeCursor.y = ny * window.innerHeight;
+    this.gazeCursor.x = nx * this._w;
+    this.gazeCursor.y = ny * this._h;
     this.gazeVisible = true;
   }
 
@@ -155,8 +165,8 @@ export class CanvasOverlay {
 
   render(activeGesture: string, mode: string, eyeTrackingOn = false) {
     const { ctx } = this;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = this._w;
+    const h = this._h;
     ctx.clearRect(0, 0, w, h);
 
     if (this.highlightRect) {
@@ -371,13 +381,13 @@ export class CanvasOverlay {
     const { ctx } = this;
     ctx.beginPath();
     ctx.moveTo(0, r.y);
-    ctx.lineTo(window.innerWidth, r.y);
+    ctx.lineTo(this._w, r.y);
     ctx.moveTo(0, r.y + r.height);
-    ctx.lineTo(window.innerWidth, r.y + r.height);
+    ctx.lineTo(this._w, r.y + r.height);
     ctx.moveTo(r.x, 0);
-    ctx.lineTo(r.x, window.innerHeight);
+    ctx.lineTo(r.x, this._h);
     ctx.moveTo(r.x + r.width, 0);
-    ctx.lineTo(r.x + r.width, window.innerHeight);
+    ctx.lineTo(r.x + r.width, this._h);
     ctx.strokeStyle = "rgba(99, 102, 241, 0.12)";
     ctx.lineWidth = 1;
     ctx.stroke();

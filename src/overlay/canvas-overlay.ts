@@ -1,3 +1,5 @@
+import { OneEuro2D } from "../gestures/one-euro";
+
 export interface Point {
   x: number;
   y: number;
@@ -12,6 +14,7 @@ export interface Stroke {
 export class CanvasOverlay {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
+  whiteboard: HTMLElement;
   strokes: Stroke[] = [];
   currentStroke: Point[] = [];
   trail: Point[] = [];
@@ -25,19 +28,45 @@ export class CanvasOverlay {
   highlightTag = "";
   isDrawing = false;
   recordingActive = false;
+  whiteboardMode = true;
+  whiteboardVisible = false;
 
-  private readonly SMOOTHING = 0.22;
   private readonly TRAIL_LEN = 14;
+  private cursorFilter: OneEuro2D;
+  private drawFilter: OneEuro2D;
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
     this.canvas.id = "gesture-canvas";
     this.canvas.style.cssText =
       "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;pointer-events:none;";
+
+    this.whiteboard = document.createElement("div");
+    this.whiteboard.id = "gesture-whiteboard";
+    this.whiteboard.style.cssText =
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99998;pointer-events:none;background:#fafafa;display:none;transition:opacity .3s;";
+    this.whiteboard.innerHTML = `
+      <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:999px;background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.08);font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:600;color:#475569;letter-spacing:0.04em;text-transform:uppercase;">Whiteboard · press <kbd style="font-family:ui-monospace,monospace;background:#fff;border:1px solid #e2e8f0;padding:1px 6px;border-radius:4px;">W</kbd> to toggle background</div>
+    `;
+    container.appendChild(this.whiteboard);
     container.appendChild(this.canvas);
+
     this.ctx = this.canvas.getContext("2d")!;
     this.resize();
     window.addEventListener("resize", () => this.resize());
+
+    this.cursorFilter = new OneEuro2D(1.5, 0.04, 1.0);
+    this.drawFilter = new OneEuro2D(0.6, 0.0015, 1.0);
+  }
+
+  setWhiteboardVisible(visible: boolean): void {
+    this.whiteboardVisible = visible;
+    this.whiteboard.style.display = visible ? "block" : "none";
+  }
+
+  toggleWhiteboardMode(): void {
+    this.whiteboardMode = !this.whiteboardMode;
+    if (!this.whiteboardMode) this.setWhiteboardVisible(false);
   }
 
   resize() {
@@ -47,15 +76,25 @@ export class CanvasOverlay {
     this.canvas.style.width = window.innerWidth + "px";
     this.canvas.style.height = window.innerHeight + "px";
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.whiteboard.style.width = window.innerWidth + "px";
+    this.whiteboard.style.height = window.innerHeight + "px";
   }
 
-  updateCursor(nx: number, ny: number) {
+  updateCursor(nx: number, ny: number, mode: "draw" | "default" = "default") {
     this.cursor.x = (1 - nx) * window.innerWidth;
     this.cursor.y = ny * window.innerHeight;
-    this.smoothCursor.x += (this.cursor.x - this.smoothCursor.x) * this.SMOOTHING;
-    this.smoothCursor.y += (this.cursor.y - this.smoothCursor.y) * this.SMOOTHING;
+    const t = performance.now();
+    const filter = mode === "draw" ? this.drawFilter : this.cursorFilter;
+    const out = filter.filter(this.cursor.x, this.cursor.y, t);
+    this.smoothCursor.x = out.x;
+    this.smoothCursor.y = out.y;
     this.trail.push({ ...this.smoothCursor });
     if (this.trail.length > this.TRAIL_LEN) this.trail.shift();
+  }
+
+  resetCursorFilter(): void {
+    this.cursorFilter.reset();
+    this.drawFilter.reset();
   }
 
   startStroke() {

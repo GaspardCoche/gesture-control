@@ -146,11 +146,14 @@ async function main() {
   }
 
   hud.updateMode(modes.current);
+  if (modes.current === "draw" && canvas.whiteboardMode) canvas.setWhiteboardVisible(true);
   modes.onChange((mode) => {
     hud.updateMode(mode);
     canvas.setHighlight(null);
     inspector.select(null);
     scrollCtrl.reset();
+    canvas.resetCursorFilter();
+    canvas.setWhiteboardVisible(mode === "draw" && canvas.whiteboardMode);
   });
 
   let lastGesture: GestureType = "NONE";
@@ -165,7 +168,7 @@ async function main() {
 
   function handleGesture(state: GestureState) {
     const { type } = state;
-    canvas.updateCursor(state.indexTip.x, state.indexTip.y);
+    canvas.updateCursor(state.indexTip.x, state.indexTip.y, modes.current === "draw" ? "draw" : "default");
 
     const scrollAmount = scrollCtrl.update(type, state.wrist.y);
 
@@ -337,6 +340,10 @@ async function main() {
     }
     if (e.key === "s" || e.key === "S") {
       settingsPanel.toggle();
+    }
+    if (e.key === "w" || e.key === "W") {
+      canvas.toggleWhiteboardMode();
+      canvas.setWhiteboardVisible(modes.current === "draw" && canvas.whiteboardMode);
     }
   });
 

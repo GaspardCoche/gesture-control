@@ -1,13 +1,10 @@
-import { pipeline, env } from "@huggingface/transformers";
 import type { RecorderCallbacks } from "./speech-recorder";
-
-env.allowLocalModels = false;
 
 const MODEL_ID = "onnx-community/whisper-base";
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_DURATION_MS = 30000;
 
-type ASRPipeline = Awaited<ReturnType<typeof pipeline>>;
+type ASRPipeline = any;
 
 let _pipeline: ASRPipeline | null = null;
 let _warmingPromise: Promise<ASRPipeline> | null = null;
@@ -26,7 +23,9 @@ async function loadPipeline(): Promise<ASRPipeline> {
 
   _warmingPromise = (async () => {
     try {
-      const p = await pipeline("automatic-speech-recognition", MODEL_ID, {
+      const tjs = await import("@huggingface/transformers");
+      tjs.env.allowLocalModels = false;
+      const p = await tjs.pipeline("automatic-speech-recognition", MODEL_ID, {
         device: _device!,
         dtype: useWebGPU ? "fp32" : "q8",
       });
@@ -157,6 +156,7 @@ export class WhisperRecorder {
       });
     };
 
+    this._recording = true;
     try {
       this.mediaRecorder.start();
     } catch (err: any) {
@@ -164,8 +164,6 @@ export class WhisperRecorder {
       this.cleanup();
       return;
     }
-
-    this._recording = true;
     this.timeoutId = window.setTimeout(() => this.stop(), MAX_DURATION_MS);
   }
 

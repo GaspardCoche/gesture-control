@@ -165,11 +165,12 @@ export class DOMInspector {
       html += `<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Computed Styles</div>`;
       for (const [k, v] of styleEntries) {
         html += `<div style="display:flex;justify-content:space-between;padding:1px 0;">`;
-        html += `<span style="color:#94a3b8;">${k}</span>`;
+        html += `<span style="color:#94a3b8;">${escapeHtml(k)}</span>`;
         const isColor = v.startsWith("rgb") || v.startsWith("#");
         if (isColor) {
+          const safeColor = sanitizeColor(v);
           html += `<span style="display:flex;align-items:center;gap:4px;">`;
-          html += `<span style="width:10px;height:10px;border-radius:2px;background:${escapeHtml(v)};border:1px solid #444;display:inline-block;"></span>`;
+          html += `<span style="width:10px;height:10px;border-radius:2px;background:${safeColor};border:1px solid #444;display:inline-block;"></span>`;
           html += `<span style="color:#e2e8f0;">${escapeHtml(v)}</span></span>`;
         } else {
           html += `<span style="color:#e2e8f0;">${escapeHtml(v)}</span>`;
@@ -245,4 +246,13 @@ export function getCssSelector(el: HTMLElement): string {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+}
+
+function sanitizeColor(str: string): string {
+  // Whitelist: rgb(), rgba(), hsl(), hsla(), hex, named colors. Strip anything else.
+  const trimmed = str.trim();
+  if (/^#[0-9a-f]{3,8}$/i.test(trimmed)) return trimmed;
+  if (/^(rgb|rgba|hsl|hsla)\(\s*[0-9.,%\s/-]+\)$/i.test(trimmed)) return trimmed;
+  if (/^[a-z]+$/i.test(trimmed)) return trimmed;
+  return "transparent";
 }

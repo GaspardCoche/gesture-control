@@ -30,6 +30,16 @@ async function main() {
   videoEl.srcObject = stream;
   await videoEl.play();
 
+  let rafId: number | null = null;
+  const teardown = () => {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = null;
+    for (const track of stream.getTracks()) track.stop();
+    videoEl.srcObject = null;
+  };
+  window.addEventListener("pagehide", teardown, { once: true });
+  window.addEventListener("beforeunload", teardown, { once: true });
+
   statusEl.textContent = "Loading MediaPipe (hand + face)...";
   await initDetector();
   statusEl.textContent = isFaceReady()
@@ -258,6 +268,13 @@ async function main() {
     lastGesture = type;
   }
 
+  let dwellTarget: Element | null = null;
+  let dwellStartTime = 0;
+  const DWELL_MS = 1500;
+  const DWELL_TOLERANCE_PX = 60;
+  let lastDwellGx = 0;
+  let lastDwellGy = 0;
+
   function handleGaze(gaze: GazeState) {
     if (!eyeTrackingEnabled) return;
     lastGaze = gaze;
@@ -267,11 +284,33 @@ async function main() {
 
     canvas.updateGazeCursor(gazeSmooth.x, gazeSmooth.y);
 
+    const gx = gazeSmooth.x * window.innerWidth;
+    const gy = gazeSmooth.y * window.innerHeight;
+
+    const movedFar = Math.hypot(gx - lastDwellGx, gy - lastDwellGy) > DWELL_TOLERANCE_PX;
+    if (movedFar) {
+      dwellTarget = inspector.getElementAt(gx, gy);
+      dwellStartTime = performance.now();
+      lastDwellGx = gx;
+      lastDwellGy = gy;
+      canvas.dwellProgress = 0;
+    } else if (dwellTarget && modes.current === "inspect") {
+      const elapsed = performance.now() - dwellStartTime;
+      canvas.dwellProgress = Math.min(1, elapsed / DWELL_MS);
+      if (elapsed >= DWELL_MS) {
+        inspector.select(dwellTarget as HTMLElement);
+        const rect = (dwellTarget as HTMLElement).getBoundingClientRect();
+        canvas.setHighlight(rect, inspector.getTagLabel(dwellTarget as HTMLElement));
+        canvas.dwellProgress = 0;
+        dwellStartTime = performance.now() + 99999;
+      }
+    } else {
+      canvas.dwellProgress = 0;
+    }
+
     if (gaze.bothBlink && Date.now() - blinkDebounce > 800) {
       blinkDebounce = Date.now();
       const mode = modes.current;
-      const gx = gazeSmooth.x * window.innerWidth;
-      const gy = gazeSmooth.y * window.innerHeight;
 
       if (mode === "inspect") {
         const el = inspector.getElementAt(gx, gy);
@@ -364,10 +403,10 @@ async function main() {
     canvas.render(lastGesture, modes.current, eyeTrackingEnabled);
     hud.updateFPS();
     hud.updateStability(getStabilityInfo());
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   }
 
-  loop();
+  rafId = requestAnimationFrame(loop);
 }
 
 main().catch((err) => {

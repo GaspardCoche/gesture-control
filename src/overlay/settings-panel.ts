@@ -120,10 +120,12 @@ export class SettingsPanel {
     });
 
     ($("#gset-save") as HTMLElement).addEventListener("click", () => {
-      setApiKey(keyInput.value);
+      const v = keyInput.value.trim();
+      if (v) setApiKey(v);
       setModel(modelSel.value);
-      this.flash(status, "Saved", "#10b981");
+      this.flash(status, v ? "Saved" : "Model saved (key unchanged)", "#10b981");
       this.onChangeCb?.();
+      this.load();
     });
 
     ($("#gset-clear") as HTMLElement).addEventListener("click", () => {
@@ -160,7 +162,15 @@ export class SettingsPanel {
   private load(): void {
     const keyInput = this.panel.querySelector("#gset-key") as HTMLInputElement;
     const modelSel = this.panel.querySelector("#gset-model") as HTMLSelectElement;
-    keyInput.value = getApiKey();
+    const existing = getApiKey();
+    if (existing) {
+      const masked = existing.slice(0, 11) + "•".repeat(20) + existing.slice(-4);
+      keyInput.value = "";
+      keyInput.placeholder = masked;
+    } else {
+      keyInput.value = "";
+      keyInput.placeholder = "sk-ant-api03-...";
+    }
     modelSel.value = getModel();
   }
 

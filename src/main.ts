@@ -11,6 +11,8 @@ import { WhisperRecorder } from "./voice/whisper-recorder";
 import { FeedbackStore } from "./voice/feedback-store";
 import { FeedbackPanel } from "./overlay/feedback-panel";
 import { SettingsPanel } from "./overlay/settings-panel";
+import { matchCommand } from "./voice/command-grammar";
+import { executeCommand, undoLast, undoStackSize } from "./voice/command-executor";
 
 interface VoiceBackend {
   start(): void | Promise<void>;
@@ -62,6 +64,34 @@ async function main() {
   let voiceRecorder: VoiceBackend | null = null;
   let voiceTranscript = "";
 
+  const toastEl = document.createElement("div");
+  toastEl.id = "gesture-toast";
+  toastEl.style.cssText = `
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    padding: 10px 18px; border-radius: 999px;
+    background: rgba(11,11,16,0.96); backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(255,255,255,0.08); color: #f1f5f9;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    z-index: 100005; pointer-events: none; opacity: 0;
+    transition: opacity .2s, transform .2s;
+  `;
+  document.body.appendChild(toastEl);
+  let toastTimer: number | null = null;
+  function showToast(msg: string, color = "#10b981") {
+    toastEl.style.color = color;
+    toastEl.style.borderColor = color + "55";
+    toastEl.textContent = msg;
+    toastEl.style.opacity = "1";
+    toastEl.style.transform = "translateX(-50%) translateY(0)";
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toastEl.style.opacity = "0";
+      toastEl.style.transform = "translateX(-50%) translateY(8px)";
+    }, 2400);
+  }
+
   function startVoiceRecording() {
     if (!inspector.selectedElement) return;
     const useWhisper = whisperReady && WhisperRecorder.isSupported();
@@ -76,15 +106,29 @@ async function main() {
       onInterim: (text: string) => { voiceTranscript = text; },
       onFinal: (text: string, confidence: number) => {
         voiceTranscript = text;
-        if (inspector.selectedElement) {
-          const info = inspector.getInfo(inspector.selectedElement);
-          feedbackStore.add(info, text, confidence);
-          feedbackPanel.show();
+        const target = inspector.selectedElement;
+        if (!target) return;
+
+        const match = matchCommand(text);
+        if (match) {
+          const result = executeCommand(target as HTMLElement, match.action);
+          if (result.ok) {
+            showToast(`✓ ${result.message}`, "#10b981");
+          } else {
+            showToast(`✗ ${result.message}`, "#ef4444");
+          }
+          return;
         }
+
+        const info = inspector.getInfo(target);
+        feedbackStore.add(info, text, confidence);
+        feedbackPanel.show();
+        showToast(`Feedback recorded — open panel (F)`, "#a78bfa");
       },
-      onError: () => {
+      onError: (err: string) => {
         canvas.recordingActive = false;
         hud.updateVoice(false);
+        showToast(`Voice error: ${err}`, "#ef4444");
       },
       onEnd: () => {
         canvas.recordingActive = false;
@@ -265,7 +309,14 @@ async function main() {
     if (e.key === "2") modes.set("draw");
     if (e.key === "3") modes.set("measure");
     if (e.key === "c" || e.key === "C") { canvas.clearAll(); inspector.select(null); }
-    if (e.key === "z" || e.key === "Z") canvas.undoStroke();
+    if (e.key === "z" || e.key === "Z") {
+      if (undoStackSize() > 0) {
+        const r = undoLast();
+        showToast(r.message, r.ok ? "#22d3ee" : "#64748b");
+      } else {
+        canvas.undoStroke();
+      }
+    }
     if (e.key === "h" || e.key === "H") hud.toggleHelp();
     if (e.key === "e" || e.key === "E") {
       eyeTrackingEnabled = !eyeTrackingEnabled;

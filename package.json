@@ -16,7 +16,7 @@
     "dompurify": "^3.4.2",
     "html2canvas-pro": "^2.0.2",
     "three": "^0.170.0",
-    "ws": "^8.18.0"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@types/three": "^0.170.0",
